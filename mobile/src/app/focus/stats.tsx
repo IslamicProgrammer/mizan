@@ -2,9 +2,9 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Bar, Label, List, Row, Screen } from '../../components/ui';
-import { MOCK } from '../../data/store';
-import { color, font, layout, lift, size } from '../../design/tokens';
+import { Bar, Empty, Label, Screen } from '../../components/ui';
+import { useStore } from '../../data/store';
+import { color, font, layout, lift } from '../../design/tokens';
 
 const WEEK = [
   { d: 'D', v: 42 },
@@ -17,17 +17,19 @@ const WEEK = [
 ];
 
 export default function FocusStats() {
+  const { focusMinutes } = useStore();
   const max = Math.max(...WEEK.map((w) => w.v));
+  const h = Math.floor(focusMinutes / 60);
+  const m = focusMinutes % 60;
   return (
     <Screen glow="soft" pad={false}>
       <Bar title="Fokus natijalari" onBack={() => router.back()} />
 
       <View style={[s.hero, lift.high]}>
-        <Text style={s.heroKey}>SHU OY HIMOYALANGAN</Text>
+        <Text style={s.heroKey}>JAMI HIMOYALANGAN</Text>
         <Text style={s.heroNum}>
-          {Math.floor(MOCK.focusMinutes / 60)}s {MOCK.focusMinutes % 60}d
+          {h}s {m}d
         </Text>
-        <Text style={s.heroSub}>sentabrdan 2s 10d ko'proq</Text>
       </View>
 
       <Label>Kunlik fokus vaqti</Label>
@@ -41,11 +43,11 @@ export default function FocusStats() {
       </View>
 
       <Label>To'xtatilgan urinishlar</Label>
-      <List>
-        {MOCK.apps.slice(0, 4).map((a, i) => (
-          <Row key={a.id} title={a.name} value={String([47, 31, 18, 9][i])} />
-        ))}
-      </List>
+      <Empty
+        icon="apps"
+        title="Hali ma'lumot yo'q"
+        body="Ilovalarni bloklash yoqilgandan keyin bu yerda ko'rinadi."
+      />
     </Screen>
   );
 }
@@ -60,7 +62,6 @@ const s = StyleSheet.create({
   },
   heroKey: { fontFamily: font.bold, fontSize: 10.5, letterSpacing: 1, color: '#8A5A11' },
   heroNum: { marginTop: 4, fontFamily: font.black, fontSize: 42, letterSpacing: -1.5, color: '#40290C' },
-  heroSub: { fontFamily: font.semibold, fontSize: size.tiny, color: '#8A5A11', marginTop: 2 },
   chart: {
     marginHorizontal: layout.gutter,
     padding: 18,

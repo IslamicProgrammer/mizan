@@ -4,12 +4,13 @@ import { StyleSheet, Text } from 'react-native';
 
 import { Bar, IconButton, Label, List, Row, Screen, Toggle } from '../../components/ui';
 import { FIVE, PRAYER_NAMES } from '../../data/prayer';
-import { MOCK, useStore } from '../../data/store';
+import { useStore } from '../../data/store';
 import { color, font } from '../../design/tokens';
 
 export default function FocusHome() {
-  const { settings, patchSettings } = useStore();
-  const blocked = MOCK.apps.filter((a) => a.blocked).length;
+  const { settings, patchSettings, focusMinutes } = useStore();
+  const h = Math.floor(focusMinutes / 60);
+  const m = focusMinutes % 60;
 
   return (
     <Screen glow="soft" pad={false}>
@@ -31,6 +32,7 @@ export default function FocusHome() {
           on={settings.focusEnabled}
           right={<Toggle value={settings.focusEnabled} onChange={(v) => patchSettings({ focusEnabled: v })} />}
         />
+        <Row icon="clock" title="Jamlangan fokus vaqti" value={`${h}s ${m}d`} />
       </List>
 
       <Label>Rejim</Label>
@@ -51,7 +53,6 @@ export default function FocusHome() {
         <Row
           icon="apps"
           title="Bloklanadigan ilovalar"
-          sub={`${blocked} ta tanlangan`}
           chevron
           onPress={() => router.push('/focus/apps')}
         />

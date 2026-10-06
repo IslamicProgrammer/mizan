@@ -4,8 +4,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Label, List, Note, Row, Screen } from '../../components/ui';
+import { FIRST_REPORT, GIVEN_TOTAL, SAMPLE_REPORT } from '../../data/charity';
 import { ICONS } from '../../data/icons';
-import { MOCK } from '../../data/store';
 import { color, font, layout, lift } from '../../design/tokens';
 
 /**
@@ -21,7 +21,7 @@ export default function Reports() {
         <View style={s.mark}>
           <Image source={ICONS.calendar} style={s.markIcon} contentFit="contain" />
         </View>
-        <Text style={s.zeroNum}>${MOCK.charity.givenTotal}</Text>
+        <Text style={s.zeroNum}>${GIVEN_TOTAL}</Text>
         <Text style={s.zeroLead}>hozircha berilgan</Text>
         <Text style={s.zeroSub}>
           Ilova endi ishga tushdi. Hali daromad yo'q, demak taqsimlanadigan foyda ham yo'q.
@@ -31,7 +31,7 @@ export default function Reports() {
       <View style={[s.soon, lift.high]}>
         <Image source={ICONS.bell} style={s.soonIcon} contentFit="contain" />
         <View style={s.flex}>
-          <Text style={s.soonTitle}>Birinchi hisobot: {MOCK.charity.firstReport}</Text>
+          <Text style={s.soonTitle}>Birinchi hisobot: {FIRST_REPORT}</Text>
           <Text style={s.soonSub}>Har oyning 5-sanasida oldingi oy hisoboti e'lon qilinadi.</Text>
         </View>
       </View>
@@ -47,7 +47,7 @@ export default function Reports() {
       <List>
         <Row
           icon="gift"
-          title={MOCK.charity.sample.month}
+          title={SAMPLE_REPORT.month}
           sub="Hisobot qanday ko'rinishini ko'rsatuvchi namuna"
           chevron
           onPress={() => router.push('/charity/report')}

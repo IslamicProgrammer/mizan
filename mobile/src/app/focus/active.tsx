@@ -17,17 +17,32 @@ import { color, font, layout, lift, size } from '../../design/tokens';
  */
 export default function FocusActive() {
   const insets = useSafeAreaInsets();
-  const { settings } = useStore();
+  const { settings, addFocusMinutes } = useStore();
   const [now, setNow] = useState(new Date());
+  // When this screen was opened, so a genuine completion can bank exactly
+  // the time the block was actually in effect.
+  const [sessionStart] = useState(() => Date.now());
+  const [focusMinutes, setFocusMinutes] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
+    const t = setInterval(() => {
+      setNow(new Date());
+      setFocusMinutes(Math.floor((Date.now() - sessionStart) / 60_000));
+    }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [sessionStart]);
 
   const cur = currentPrayer(now, settings.madhhab);
   const next = nextPrayer(now, settings.madhhab);
   const left = countdown(next.until);
+
+  // The only genuine completion: the user prayed and the block ends on its
+  // own account. Waiting five minutes or switching focus off for the day
+  // are both the session ending without having been kept — not focus time.
+  const complete = () => {
+    addFocusMinutes(focusMinutes);
+    router.back();
+  };
 
   return (
     <View style={s.screen}>
@@ -66,7 +81,7 @@ export default function FocusActive() {
       <View style={s.flex} />
 
       <View style={s.foot}>
-        <Button label={`${PRAYER_NAMES[cur]}ni o'qidim`} onPress={() => router.back()} />
+        <Button label={`${PRAYER_NAMES[cur]}ni o'qidim`} onPress={complete} />
         <Button label="5 daqiqa kutish" tone="ghost" onPress={() => router.back()} />
         <Pressable accessibilityRole="button" onPress={() => router.back()} style={s.off}>
           <Text style={s.offText}>bugunga fokusni o'chirish</Text>

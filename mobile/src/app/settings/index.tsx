@@ -1,9 +1,11 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Label, List, Row, Screen, Toggle } from '../../components/ui';
-import { MOCK, useStore } from '../../data/store';
+import { ICONS } from '../../data/icons';
+import { useStore } from '../../data/store';
 import { color, font, layout, lift, size } from '../../design/tokens';
 
 export default function Settings() {
@@ -13,13 +15,16 @@ export default function Settings() {
     <Screen glow="soft" pad={false}>
       <Bar title="Sozlamalar" onBack={() => router.back()} />
 
+      {/* Non-pressable: there is no account to open until Task 8 wires this
+          up to Google sign-in. A chevron here with nothing behind it would
+          be the same dead-row defect Task 13 exists to fix. */}
       <View style={[s.profile, lift.low]}>
         <View style={s.avatar}>
-          <Text style={s.avatarText}>{MOCK.profile.name[0]}</Text>
+          <Image source={ICONS.profile} style={s.avatarIcon} contentFit="contain" />
         </View>
         <View style={s.flex}>
-          <Text style={s.profileName}>{MOCK.profile.name}</Text>
-          <Text style={s.profileSub}>Bepul reja · Premiumga o'tish</Text>
+          <Text style={s.profileName}>Hisobga kirish</Text>
+          <Text style={s.profileSub}>Tariximiz saqlanishi uchun hisobga kiring.</Text>
         </View>
       </View>
 
@@ -115,14 +120,14 @@ const s = StyleSheet.create({
     marginHorizontal: layout.gutter,
     padding: 14,
     borderRadius: layout.radius.md,
-    backgroundColor: '#F6DCA8',
+    backgroundColor: color.surface,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 13,
   },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8B762', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: font.extrabold, fontSize: size.body, color: '#40290C' },
-  profileName: { fontFamily: font.bold, fontSize: 15.5, color: '#40290C' },
-  profileSub: { fontFamily: font.medium, fontSize: size.tiny, color: '#8A5A11', marginTop: 2 },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(80,50,15,.08)', alignItems: 'center', justifyContent: 'center' },
+  avatarIcon: { width: 20, height: 20 },
+  profileName: { fontFamily: font.bold, fontSize: 15.5, color: color.ink },
+  profileSub: { fontFamily: font.medium, fontSize: size.tiny, color: color.inkSoft, marginTop: 2 },
   version: { textAlign: 'center', marginTop: 22, fontFamily: font.medium, fontSize: 11.5, color: color.inkSoft },
 });

@@ -3,18 +3,20 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Bar, Button, Label, List, Row, Screen } from '../../components/ui';
+import { Bar, Button, Label, List, Note, Row, Screen } from '../../components/ui';
+import { SAMPLE_REPORT } from '../../data/charity';
 import { ICONS } from '../../data/icons';
-import { MOCK } from '../../data/store';
 import { font, layout, lift } from '../../design/tokens';
 
 const money = (n: number) => `$${n.toLocaleString('en-US')}`;
 
 export default function Report() {
-  const r = MOCK.charity.sample;
+  const r = SAMPLE_REPORT;
   return (
     <Screen glow="soft" pad={false}>
       <Bar title={r.month} onBack={() => router.back()} />
+
+      <Note icon="gift">Namuna — kelgusi hisobot shunday ko'rinadi.</Note>
 
       <List>
         <Row title="Daromad" value={money(r.revenue)} />

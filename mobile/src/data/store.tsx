@@ -1,13 +1,16 @@
 /**
- * App state for the demo.
+ * App state for the app.
  *
  * One store so screens agree with each other — marking Asr prayed on the prayer
- * sheet has to move the streak on the garden screen, or the demo tells you
+ * sheet has to move the streak on the garden screen, or the app tells the user
  * nothing about whether the flows connect.
  *
- * MOCK is everything invented for the demo: history, streaks, charity figures,
- * blocked apps. Prayer TIMES are real (see prayer.ts). Anything under MOCK is a
- * decision still to be made, not a decision already taken.
+ * Every field here is a real, persisted record of something the user did.
+ * There used to be a `MOCK` constant holding invented history, streaks,
+ * charity figures and blocked apps; it is gone. A screen whose feature does
+ * not exist yet (app-blocking, a signed-in account, a published charity
+ * report) shows an honest empty state instead of a fabricated number — see
+ * focus/, charity/ and settings/ under app/.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState, View } from 'react-native';
@@ -58,6 +61,12 @@ type State = {
    */
   qaza: Record<PrayerId, number>;
   /**
+   * Total minutes of focus time ever banked, across every completed
+   * blocking session. Starts at zero on a fresh install — there is no
+   * app-blocking yet, so there is nothing to have earned before today.
+   */
+  focusMinutes: number;
+  /**
    * The day `marks` belongs to. Without this, yesterday's marks are still
    * "today" when the app is reopened: the garden thinks the day is already
    * prayed, the streak is wrong, and yesterday is never written to history.
@@ -100,6 +109,7 @@ const DEFAULTS: State = {
   history: {},
   tasbih: { count: 0, targetIdx: 0 },
   qaza: { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
+  focusMinutes: 0,
 };
 
 const EMPTY_MARKS: Record<PrayerId, PrayerMark> = {
@@ -144,46 +154,6 @@ function rollOver(state: State): State {
   };
 }
 
-/* ------------------------------------------------------------------- MOCK */
-
-export type BlockableApp = { id: string; name: string; usage: string; blocked: boolean };
-
-export const MOCK = {
-  // Still read by settings/profile.tsx, which belongs to Task 16 — leaving
-  // it here rather than breaking that screen's build; Task 16 removes it
-  // along with the rest of MOCK.
-  streak: 17,
-  focusMinutes: 500,
-  /** Apps the focus mode can block. Real icons come from the OS at runtime. */
-  apps: [
-    { id: 'instagram', name: 'Instagram', usage: '2s 14d', blocked: true },
-    { id: 'tiktok', name: 'TikTok', usage: '1s 48d', blocked: true },
-    { id: 'youtube', name: 'YouTube', usage: '1s 06d', blocked: true },
-    { id: 'telegram', name: 'Telegram', usage: '52d', blocked: true },
-    { id: 'whatsapp', name: 'WhatsApp', usage: '24d', blocked: false },
-    { id: 'uzummarket', name: 'Uzum Market', usage: '11d', blocked: false },
-  ] as BlockableApp[],
-  /** Charity. Zero on purpose — the app has not earned anything yet. */
-  charity: {
-    givenTotal: 0,
-    firstReport: 'dekabr 2026',
-    sample: {
-      month: 'Mart 2027',
-      revenue: 4180,
-      play: 627,
-      infra: 312,
-      tax: 498,
-      profit: 1743,
-      to: [
-        { label: 'Oziq-ovqat yordami', org: 'Mehr-shafqat jamg‘armasi · 12-mart', amount: 520, icon: 'gift' },
-        { label: 'Toza suv', org: 'Quduq loyihasi · 19-mart', amount: 430, icon: 'droplet' },
-        { label: 'Ta’lim', org: 'Maktab jihozlari · 26-mart', amount: 393, icon: 'book' },
-      ],
-    },
-  },
-  profile: { name: 'Murodjon', joined: '2026-yil sentabr', totalPrayers: 412 },
-} as const;
-
 /* ------------------------------------------------------------------ store */
 
 type Store = State & {
@@ -208,6 +178,13 @@ type Store = State & {
   /** Sets one prayer's outstanding count. Clamped at zero — a negative debt
    * of prayers owed is meaningless. */
   setQaza: (id: PrayerId, n: number) => void;
+  /**
+   * Banks minutes from a focus session that genuinely completed. Call this
+   * only at completion, never when a session is abandoned — an abandoned
+   * session is not focus time. `n` is floored and clamped so a miscomputed
+   * or negative duration can never reduce the running total.
+   */
+  addFocusMinutes: (n: number) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -331,6 +308,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             history: { ...s.history, [date]: { ...cur, kept: cur.kept + 1, updatedAt: Date.now() } },
           };
         }),
+      addFocusMinutes: (n) =>
+        setState((s) => ({
+          ...s,
+          // A session that ends early, or a duration derived from a clock
+          // jump, must never subtract from minutes already banked — only a
+          // finite, positive amount is added; anything else adds nothing.
+          focusMinutes: s.focusMinutes + (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0),
+        })),
       finishOnboarding: () => setState((s) => ({ ...s, onboarded: true })),
       // Wipes real history rather than replacing it with invented days.
       // `startedAt` is set to today because a fresh start has no past in
