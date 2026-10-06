@@ -66,7 +66,7 @@ export default function Stats() {
         <Empty
           icon="calendar"
           title="Hali ma'lumot yo'q"
-          body="— birinchi namozingizni belgilang."
+          body="Birinchi namozingizni belgilang."
         />
       ) : (
         <Bars items={bars} />
