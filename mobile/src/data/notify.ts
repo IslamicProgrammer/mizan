@@ -10,8 +10,6 @@
  * touching the notifications module at all; `syncNotifications` is the only
  * place that talks to the device.
  */
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { FIVE, PRAYER_NAMES, timesFor, type Madhhab } from './prayer';
@@ -60,6 +58,33 @@ export function buildSchedule(
   return out;
 }
 
+type NotificationsModule = typeof import('expo-notifications');
+
+let cached: NotificationsModule | null | undefined;
+
+/**
+ * Loaded lazily, and tolerated when it fails.
+ *
+ * `expo-notifications` throws the moment it is imported inside Expo Go on
+ * Android — Expo removed its native half from the Go client in SDK 53. A
+ * static import therefore does not merely disable notifications there, it
+ * takes the whole app down: this module never finishes evaluating, so the
+ * root layout that imports it exports nothing and every screen disappears
+ * behind "missing the required default export".
+ *
+ * Notifications really do need a development build. The other twenty-four
+ * screens do not, and must keep working in Expo Go while one is being set up.
+ */
+async function load(): Promise<NotificationsModule | null> {
+  if (cached !== undefined) return cached;
+  try {
+    cached = await import('expo-notifications');
+  } catch {
+    cached = null;
+  }
+  return cached;
+}
+
 const CHANNEL_ID = 'prayers';
 
 /**
@@ -70,15 +95,14 @@ const CHANNEL_ID = 'prayers';
  * function simply returns without scheduling anything, and nothing above it
  * treats that as an error.
  */
-async function ensurePermission(): Promise<boolean> {
-  // The simulator/emulator check guards CI and Expo Go on a bare emulator,
-  // where there is no real notification channel to grant - asking there
-  // only produces a confusing prompt that can never be answered usefully.
-  if (!Device.isDevice) return false;
-  const existing = await Notifications.getPermissionsAsync();
+async function ensurePermission(N: NotificationsModule): Promise<boolean> {
+  // No emulator guard here on purpose: locally scheduled notifications do fire
+  // on an Android emulator, and skipping them there would remove the only way
+  // to watch this feature work before release.
+  const existing = await N.getPermissionsAsync();
   if (existing.status === 'granted') return true;
   if (!existing.canAskAgain) return false;
-  const requested = await Notifications.requestPermissionsAsync();
+  const requested = await N.requestPermissionsAsync();
   return requested.status === 'granted';
 }
 
@@ -99,30 +123,33 @@ async function ensurePermission(): Promise<boolean> {
  * rest.
  */
 export async function syncNotifications(settings: Settings): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  const N = await load();
+  if (!N) return; // Expo Go on Android, or any build without the native module
+
+  await N.cancelAllScheduledNotificationsAsync();
   if (settings.cycleMode) return;
 
-  const granted = await ensurePermission();
+  const granted = await ensurePermission(N);
   if (!granted) return;
 
   if (Platform.OS === 'android') {
     // Must run before anything is scheduled, or the first notification of a
     // fresh install posts through Android's noisy default channel instead
     // of this one.
-    await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+    await N.setNotificationChannelAsync(CHANNEL_ID, {
       name: 'Namoz vaqtlari',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: N.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
     });
   }
 
   const schedule = buildSchedule(new Date(), WINDOW_DAYS, settings.madhhab, settings.notifyBefore);
   for (const n of schedule) {
-    await Notifications.scheduleNotificationAsync({
+    await N.scheduleNotificationAsync({
       identifier: n.id,
       content: { title: n.title, body: n.body, sound: 'default' },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        type: N.SchedulableTriggerInputTypes.DATE,
         date: n.at,
         channelId: CHANNEL_ID,
       },
