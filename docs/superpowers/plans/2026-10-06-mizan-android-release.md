@@ -982,6 +982,14 @@ git add server && git commit -m "feat(server): profile state endpoints with accu
 > The response carries `dropped: string[]` beside `state`. It is de-duplicated
 > via a `Set`, so a key rejected on both the local and the remote side appears
 > once, not twice.
+>
+> **Build the request body from `stateForSync(state)`, never from `state`.**
+> `mobile/src/data/store.tsx` exports it for this purpose. It drops `cycles` —
+> a record of the user's menstrual periods, kept so cycle mode can pause the
+> garden. The app tells her that stays on her phone, and that is only true if
+> there is no path from the state object to the network, rather than a
+> convention each caller is trusted to remember. Serializing `state` directly
+> would send it.
 
 **Files:**
 - Create: `mobile/src/data/api.ts`, `mobile/src/data/auth.ts`, `mobile/src/app/(auth)/sign-in.tsx`, `mobile/src/app/(auth)/_layout.tsx`
