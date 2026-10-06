@@ -4,11 +4,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Chevron, IconButton, Label, List, Row, Screen } from '../../components/ui';
 import { color, font, layout, lift } from '../../design/tokens';
-import { currentPrayer, dayMonth, hhmm, timesFor, weekday } from '../../data/prayer';
-import { MOCK, useStore } from '../../data/store';
+import { FIVE, currentPrayer, dayMonth, hhmm, timesFor, weekday } from '../../data/prayer';
+import { useStore } from '../../data/store';
 
 export default function Timetable() {
-  const { settings, marks } = useStore();
+  const { settings, marks, qaza } = useStore();
   const [offset, setOffset] = useState(0);
 
   const day = new Date();
@@ -25,7 +25,7 @@ export default function Timetable() {
           ? 'Kecha'
           : dayMonth(day);
 
-  const qazaTotal = Object.values(MOCK.qaza).reduce((a, b) => a + b, 0);
+  const qazaTotal = FIVE.reduce((sum, id) => sum + (qaza[id] ?? 0), 0);
 
   return (
     <Screen glow="soft">

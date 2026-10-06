@@ -124,6 +124,33 @@ describe('repairDay', () => {
   });
 });
 
+describe('setQaza', () => {
+  it('persists an outstanding count across a fresh mount, not just in memory', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().setQaza('fajr', 3);
+    });
+    expect(store.current().qaza.fajr).toBe(3);
+
+    // A real navigation never unmounts the provider, but a fresh mount is
+    // the sharper check: it proves the count reached AsyncStorage, not just
+    // that it survived in the live object.
+    const reloaded = await mountStore();
+    expect(reloaded.current().qaza.fajr).toBe(3);
+  });
+
+  it('clamps at zero — a negative count of owed prayers is meaningless', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().setQaza('asr', -5);
+    });
+
+    expect(store.current().qaza.asr).toBe(0);
+  });
+});
+
 describe("recordFor's today branch", () => {
   it('carries no updatedAt key when marksUpdatedAt has never been set', async () => {
     const store = await mountStore();

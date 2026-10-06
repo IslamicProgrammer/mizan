@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Screen, Tiles } from '../components/ui';
 import { monthYear } from '../data/prayer';
-import { MOCK } from '../data/store';
+import { monthTotals } from '../data/stats';
+import { useStore } from '../data/store';
 import { color, font, layout, lift, size } from '../design/tokens';
 
 const DAYS = ['D', 'S', 'C', 'P', 'J', 'Sh', 'Y'];
@@ -14,6 +15,8 @@ const DAYS = ['D', 'S', 'C', 'P', 'J', 'Sh', 'Y'];
  * reads at a glance without needing a legend for every shade.
  */
 export default function Month() {
+  const { history, startedAt, streak, recentDays } = useStore();
+
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
@@ -28,8 +31,23 @@ export default function Month() {
     ...Array.from({ length: count }, (_, i) => i + 1),
   ];
 
-  // MOCK: deterministic so the demo looks the same each run.
-  const kept = (d: number) => (d > today ? -1 : [5, 5, 4, 5, 3, 5, 5][d % 7]);
+  const todayRec = recentDays(1)[0]!;
+  const historyWithToday = useMemo(
+    () => ({ ...history, [todayRec.date]: todayRec.rec }),
+    [history, todayRec],
+  );
+
+  // -1 marks a day with nothing recorded: either it hasn't happened yet, or
+  // it's before `startedAt` and the app simply wasn't installed to record it.
+  const kept = (d: number) => {
+    const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const rec = historyWithToday[key];
+    if (!rec || rec.rest) return -1;
+    return rec.kept;
+  };
+
+  const { prayed, total } = monthTotals(historyWithToday, now, startedAt);
+  const pct = total > 0 ? Math.round((prayed / total) * 100) : 0;
 
   return (
     <Screen glow="soft" pad={false}>
@@ -71,9 +89,9 @@ export default function Month() {
       <View style={s.gap} />
       <Tiles
         items={[
-          { value: String(MOCK.monthPrayed), label: "o'qilgan namoz" },
-          { value: `${Math.round((MOCK.monthPrayed / MOCK.monthTotal) * 100)}%`, label: 'muntazamlik' },
-          { value: String(MOCK.streak), label: 'kunlik Bomdod' },
+          { value: String(prayed), label: "o'qilgan namoz" },
+          { value: `${pct}%`, label: 'muntazamlik' },
+          { value: String(streak), label: 'kunlik Bomdod' },
         ]}
       />
     </Screen>

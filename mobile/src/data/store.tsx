@@ -52,6 +52,12 @@ type State = {
   /** Tasbih survives navigation — losing a count of 99 on a back tap is unforgivable. */
   tasbih: { count: number; targetIdx: number };
   /**
+   * Outstanding make-up prayers, per prayer. This is the one screen where the
+   * number IS the point — a user records how many they owe, and until this
+   * was added nothing persisted it past the next navigation.
+   */
+  qaza: Record<PrayerId, number>;
+  /**
    * The day `marks` belongs to. Without this, yesterday's marks are still
    * "today" when the app is reopened: the garden thinks the day is already
    * prayed, the streak is wrong, and yesterday is never written to history.
@@ -93,6 +99,7 @@ const DEFAULTS: State = {
   answers: {},
   history: {},
   tasbih: { count: 0, targetIdx: 0 },
+  qaza: { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
 };
 
 const EMPTY_MARKS: Record<PrayerId, PrayerMark> = {
@@ -142,30 +149,11 @@ function rollOver(state: State): State {
 export type BlockableApp = { id: string; name: string; usage: string; blocked: boolean };
 
 export const MOCK = {
-  /** Streak and garden. */
+  // Still read by settings/profile.tsx, which belongs to Task 16 — leaving
+  // it here rather than breaking that screen's build; Task 16 removes it
+  // along with the rest of MOCK.
   streak: 17,
-  longestStreak: 23,
-  monthPrayed: 143,
-  monthTotal: 157,
   focusMinutes: 500,
-  /** Per-prayer consistency for the stats screen, in percent. */
-  consistency: [
-    { key: 'Bomdod', pct: 84 },
-    { key: 'Peshin', pct: 97 },
-    { key: 'Asr', pct: 78, warn: true },
-    { key: 'Shom', pct: 100 },
-    { key: 'Xufton', pct: 92 },
-  ],
-  /** Outstanding make-up prayers. */
-  qaza: { fajr: 6, dhuhr: 2, asr: 5, maghrib: 0, isha: 1 } as Record<string, number>,
-  /** Recent days for the garden list: 0-5 prayers kept. */
-  recentDays: [
-    { label: 'Bugun', sub: '4 / 5 o‘qildi', kept: 4 },
-    { label: '28 sentabr', sub: 'To‘liq kun', kept: 5 },
-    { label: '27 sentabr', sub: 'To‘liq kun', kept: 5 },
-    { label: '26 sentabr', sub: 'To‘liq kun', kept: 5 },
-    { label: '25 sentabr', sub: '3 / 5 o‘qildi', kept: 3 },
-  ],
   /** Apps the focus mode can block. Real icons come from the OS at runtime. */
   apps: [
     { id: 'instagram', name: 'Instagram', usage: '2s 14d', blocked: true },
@@ -217,6 +205,9 @@ type Store = State & {
   /** consecutive days with at least one prayer, rest days not breaking it */
   streak: number;
   setTasbih: (t: { count: number; targetIdx: number }) => void;
+  /** Sets one prayer's outstanding count. Clamped at zero — a negative debt
+   * of prayers owed is meaningless. */
+  setQaza: (id: PrayerId, n: number) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -313,6 +304,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       patchSettings: (p) => setState((s) => ({ ...s, settings: { ...s.settings, ...p } })),
       setAnswers: (answers) => setState((s) => ({ ...s, answers })),
       setTasbih: (tasbih) => setState((s) => ({ ...s, tasbih })),
+      setQaza: (id, n) =>
+        setState((s) => ({ ...s, qaza: { ...s.qaza, [id]: Math.max(0, n) } })),
       repairDay: (date) =>
         setState((s) => {
           const cur = s.history[date] ?? { kept: 0 };
