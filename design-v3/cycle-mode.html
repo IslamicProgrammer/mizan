@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Hayz rejimi</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  .act-state{position:relative;margin:4px var(--gutter) 0;padding:16px 18px;border-radius:24px;
+        background:linear-gradient(155deg,#F6E0E0,#EFD4D4);box-shadow:var(--lift-hi);
+        display:flex;align-items:center;gap:14px;flex:none}
+  .act-state img{width:40px;height:40px}
+  .act-state .l{flex:1;display:flex;flex-direction:column;gap:2px}
+  .act-state .l b{font-size:16px;font-weight:800;color:#6E3838}
+  .act-state .l s{font-size:12.5px;font-weight:600;color:#844646;text-decoration:none}
+  .priv{position:relative;margin:14px var(--gutter) 0;padding:14px 16px;border-radius:19px;
+        background:#F0F2F5;display:flex;gap:11px;align-items:flex-start;flex:none;
+        font-size:12.5px;line-height:1.55;font-weight:500;color:#55657A}
+  .priv svg{flex:none;margin-top:1px}
+  .priv p{flex:1}
+</style>
+</head>
+<body>
+<div class="screen"><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+  <div class="bar"><a class="ic" href="settings.html" aria-label="Orqaga"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19 8 12l7-7"/></svg></a><h1>Hayz rejimi</h1></div>
+  <div class="act-state">
+    <img src="assets/icons/cycle.png" alt="">
+    <span class="l"><b>Hozir faol</b><s>3-kun · 27-sentabrdan beri</s></span>
+    <span class="tg on"><i></i></span>
+  </div>
+  <div class="lbl">Bu davrda ilova nima qiladi</div>
+  <div class="list">
+    <div class="li "><img src="assets/icons/check.png" alt=""><span class="l"><b>Namozlar o'tkazib yuborilgan deb belgilanmaydi</b></span></div>
+    <div class="li "><img src="assets/icons/check.png" alt=""><span class="l"><b>Bog'ingiz to'xtab turadi, qurib qolmaydi</b></span></div>
+    <div class="li "><img src="assets/icons/check.png" alt=""><span class="l"><b>Namoz eslatmalari o'chiriladi</b></span></div>
+    <div class="li "><img src="assets/icons/check.png" alt=""><span class="l"><b>Qazo hisobiga qo'shilmaydi</b></span></div>
+  </div>
+  <div class="lbl">Tarix</div>
+  <div class="list">
+    <div class="li "><span class="l"><b>27-sentabr — davom etmoqda</b></span><span class="r">3 kun</span></div>
+    <div class="li dim"><span class="l"><b>12–17 sentabr</b></span><span class="r">6 kun</span></div>
+    <div class="li dim"><span class="l"><b>14–19 avgust</b></span><span class="r">6 kun</span></div>
+  </div>
+  <div class="priv">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4E6480" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 19 6v6c0 4.4-3 7.6-7 8.8-4-1.2-7-4.4-7-8.8V6z"/></svg>
+    <p>Bu ma'lumot faqat telefoningizda saqlanadi. Serverga yuborilmaydi va hech kim ko'rmaydi.</p>
+  </div>
+  <div style="margin:16px var(--gutter) 0;flex:none"><a class="act" href="#">Tugadi deb belgilash</a></div>
+
+
+  <div class="grain"></div>
+</div>
+</body>
+</html>

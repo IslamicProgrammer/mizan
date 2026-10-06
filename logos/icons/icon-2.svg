@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#F8F2EA"/><g id="icon">
+    <!-- deep warm brown app tile -->
+    <rect x="0" y="0" width="512" height="512" rx="112" fill="#50320F"/>
+
+    <!-- meem as balance: kashida beam + loop pivot + descending tail/stand -->
+    <g fill="none" stroke="#E8B762" stroke-width="52" stroke-linecap="round" stroke-linejoin="round">
+      <!-- the beam: elongated entry stroke, perfectly level -->
+      <path d="M110 118 H402"/>
+      <!-- the tail: post dropping from the loop, footing to the left -->
+      <path d="M256 260 V346 Q256 394 208 394 H155"/>
+      <!-- the loop: true circle, flush with the beam, the pivot -->
+      <circle cx="256" cy="192" r="74"/>
+    </g>
+
+    <!-- pivot point -->
+    <circle cx="256" cy="192" r="20" fill="#E66A43"/>
+  </g>
+
+  </svg>

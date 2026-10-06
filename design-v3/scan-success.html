@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8"><title>Mizan — Topildi</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .glow{height:520px}
+  .mosque{position:absolute;left:50%;transform:translateX(-50%);top:150px;width:320px;opacity:.5;
+          filter:brightness(1.05) contrast(1.04) saturate(.9)}
+  .body{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;
+        justify-content:center;padding:0 var(--gutter) 30px}
+  .tick{position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center}
+  .tick .h1,.tick .h2{position:absolute;border-radius:50%}
+  .tick .h1{inset:0;background:rgba(126,155,120,.13)}
+  .tick .h2{inset:17px;background:rgba(126,155,120,.19)}
+  .tick .c{position:relative;width:104px;height:104px;border-radius:50%;
+           background:linear-gradient(155deg,#97B490,#6E8C68);display:flex;align-items:center;
+           justify-content:center;box-shadow:0 16px 32px rgba(110,140,104,.34)}
+  h1{margin-top:26px;font-size:27px;font-weight:800;letter-spacing:-.5px}
+  .sub{margin-top:8px;font-size:14.5px;font-weight:600;color:var(--ink-soft)}
+  .win{margin-top:28px;width:100%;padding:20px 22px;border-radius:26px;
+       background:linear-gradient(155deg,#FCEBC7,#F3C87E);box-shadow:var(--lift-hi);
+       display:flex;flex-direction:column;align-items:center;gap:3px}
+  .win .k{font-size:10.5px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#90621C}
+  .win b{font-size:34px;font-weight:900;line-height:1.15;letter-spacing:-1px;color:#40290C;font-variant-numeric:tabular-nums}
+  .win s{margin-top:4px;font-size:12.5px;font-weight:600;color:#8A6222;text-decoration:none}
+  .acts{position:relative;padding:0 var(--gutter) 30px;display:flex;flex-direction:column;gap:10px;flex:none}
+  .fine{display:flex;gap:9px;align-items:flex-start;padding:0 4px;margin-top:6px}
+  .fine p{font-size:11.5px;line-height:1.5;font-weight:500;color:#9A8974}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow"></div>
+  <img class="mosque" src="assets/img/hero-mosque.png" alt="">
+  <div class="bleed"></div>
+
+  <div class="body">
+    <div class="tick">
+      <span class="h1"></span><span class="h2"></span>
+      <span class="c"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#FBFDF9" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+    </div>
+    <h1>Joynamoz topildi</h1>
+    <div class="sub">Signal to'xtatildi · 05:41</div>
+    <div class="win">
+      <span class="k">Bomdod vaqti</span>
+      <b>05:36 — 06:58</b>
+      <s>Shoshilmang. Vaqt yetarli.</s>
+    </div>
+  </div>
+
+  <div class="acts">
+    <a class="act" href="home.html">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Bomdodni o'qildi deb belgilash
+    </a>
+    <a class="act ghost" href="home.html">Keyinroq belgilayman</a>
+    <div class="fine">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A08B70" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9.5"/><path d="M12 16v-4.5M12 8h.01"/></svg>
+      <p>Ilova joynamozni ko'rdi, xolos. Namoz o'qiganingizni faqat siz belgilaysiz.</p>
+    </div>
+  </div>
+  <div class="grain"></div>
+</div>
+</body>
+</html>

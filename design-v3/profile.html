@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Profil</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  .who{position:relative;margin:6px var(--gutter) 18px;display:flex;flex-direction:column;
+       align-items:center;gap:8px;flex:none}
+  .who .av{width:82px;height:82px;border-radius:29px;background:linear-gradient(155deg,#F9D89F,#E9A644);
+           display:flex;align-items:center;justify-content:center;font-size:31px;font-weight:800;
+           color:#4A3210;box-shadow:0 12px 26px rgba(197,138,46,.26)}
+  .who b{font-size:20px;font-weight:800}
+  .who s{font-size:12.5px;font-weight:500;color:var(--ink-soft);text-decoration:none}
+  .plan{position:relative;margin:14px var(--gutter) 0;padding:16px 18px;border-radius:22px;
+        background:linear-gradient(155deg,#FCEBC7,#F3C87E);box-shadow:var(--lift-hi);
+        display:flex;align-items:center;gap:13px;flex:none}
+  .plan img{width:38px;height:38px}
+  .plan .l{flex:1;display:flex;flex-direction:column;gap:2px}
+  .plan .l b{font-size:15.5px;font-weight:800;color:#40290C}
+  .plan .l s{font-size:12px;font-weight:600;color:#8A5A11;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="screen"><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+  <div class="bar"><a class="ic" href="settings.html" aria-label="Orqaga"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19 8 12l7-7"/></svg></a><h1>Profil</h1></div>
+  <div class="who">
+    <span class="av">M</span>
+    <b>Murodjon</b>
+    <s>Google orqali kirilgan · 2026-yil sentabrdan</s>
+  </div>
+  <div class="tiles">
+    <span class="tile"><b>412</b><s>namoz</s></span>
+    <span class="tile"><b>17</b><s>kun Bomdod</s></span>
+    <span class="tile"><b>31s</b><s>fokus</s></span>
+  </div>
+  <div class="plan">
+    <img src="assets/icons/sparkle.png" alt="">
+    <span class="l"><b>Bepul reja</b><s>Premium bilan ko'proq imkoniyat</s></span>
+  </div>
+  <div style="margin:10px var(--gutter) 0;flex:none"><a class="act" href="12-paywall.html">7 kun bepul sinash</a></div>
+  <div class="lbl">Hisob</div>
+  <div class="list">
+    <div class="li "><span class="l"><b>Email</b></span><span class="r">m•••@gmail.com</span></div>
+    <div class="li "><span class="l"><b>Ma'lumotlarni yuklab olish</b></span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></div>
+    <div class="li "><span class="l"><b>Boshqa qurilmalar</b></span><span class="r">1 ta</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></div>
+  </div>
+  <div style="margin:16px var(--gutter) 0;flex:none"><a class="act ghost" href="#">Chiqish</a></div>
+
+
+  <div class="grain"></div>
+</div>
+</body>
+</html>

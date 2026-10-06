@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8"><title>Mizan — Namozni belgilash</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="app.css">
+<style>
+  /* The screen behind the sheet is the timetable, not blank bars: empty
+     placeholders under a scrim read as a page that failed to load. */
+  .behind{position:absolute;inset:0;display:flex;flex-direction:column;filter:blur(1.5px)}
+  .behind .bh{height:44px;flex:none;display:flex;align-items:center;justify-content:center;
+              font-size:17px;font-weight:700;letter-spacing:-.2px;margin-top:6px}
+  .behind .rows{padding:14px var(--gutter) 0;display:flex;flex-direction:column;gap:9px}
+  .behind .r{display:flex;align-items:center;gap:13px;height:56px;padding:0 16px;
+             border-radius:20px;background:var(--surface);box-shadow:var(--lift)}
+  .behind .r.cur{height:64px;background:linear-gradient(150deg,#FCEBC7,#F3C87E);box-shadow:var(--lift-hi)}
+  .behind .r img{width:26px;height:26px}
+  .behind .r b{flex:1;font-size:15.5px;font-weight:700}
+  .behind .r span{font-size:15.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .dim{position:absolute;inset:0;background:rgba(43,31,17,.42)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;padding:14px 24px 30px;border-radius:30px 30px 0 0;
+         background:var(--page);box-shadow:0 -12px 40px rgba(43,31,17,.22);
+         display:flex;flex-direction:column;gap:16px}
+  .grab{align-self:center;width:44px;height:5px;border-radius:999px;background:#E6D9C2}
+  .who{display:flex;align-items:center;gap:14px}
+  .who img{width:48px;height:48px}
+  .who .l{flex:1;display:flex;flex-direction:column;gap:2px}
+  .who .l b{font-size:21px;font-weight:800;letter-spacing:-.3px}
+  .who .l s{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none}
+  .acts{display:flex;flex-direction:column;gap:10px}
+  .ax{display:flex;align-items:center;gap:13px;width:100%;border:0;cursor:pointer;text-align:left;
+      padding:16px 18px;border-radius:20px;font-family:'Onest',sans-serif;font-size:16px;font-weight:700}
+  .ax.yes{background:#7E9B78;color:#FBFDF9}
+  .ax.later{background:var(--surface);box-shadow:var(--lift);color:var(--ink)}
+  .ax.qaza{background:#EDE4D4;color:#5C4326}
+  .ax .sm{display:block;font-size:11.5px;font-weight:500;opacity:.8;margin-top:1px}
+  .jam{display:flex;align-items:center;gap:12px;padding-top:4px;border-top:1px solid rgba(80,50,15,.09)}
+  .jam .l{flex:1;display:flex;flex-direction:column;gap:2px;padding-top:12px}
+  .jam .l b{font-size:13.5px;font-weight:700}
+  .jam .l s{font-size:11.5px;font-weight:500;color:var(--ink-soft);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="screen"><div class="bleed"></div>
+  <div class="behind">
+    <div class="bh">Namoz vaqtlari</div>
+    <div class="rows">
+      <div class="r"><img src="assets/icons/fajr.png" alt=""><b>Bomdod</b><span>05:36</span></div>
+      <div class="r"><img src="assets/icons/dhuhr.png" alt=""><b>Quyosh chiqishi</b><span>06:58</span></div>
+      <div class="r"><img src="assets/icons/dhuhr.png" alt=""><b>Peshin</b><span>12:25</span></div>
+      <div class="r cur"><img src="assets/icons/asr.png" alt=""><b>Asr</b><span>16:34</span></div>
+      <div class="r"><img src="assets/icons/maghrib.png" alt=""><b>Shom</b><span>18:36</span></div>
+      <div class="r"><img src="assets/icons/isha.png" alt=""><b>Xufton</b><span>20:02</span></div>
+    </div>
+  </div>
+  <div class="dim"></div>
+
+  <div class="sheet">
+    <span class="grab"></span>
+    <div class="who">
+      <img src="assets/icons/asr.png" alt="">
+      <span class="l"><b>Asr</b><s>16:34 — 18:36 · hozir</s></span>
+    </div>
+    <div class="acts">
+      <button class="ax yes" type="button">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        O'qidim
+      </button>
+      <button class="ax later" type="button">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#7A6753" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg>
+        Keyinroq o'qiyman
+      </button>
+      <button class="ax qaza" type="button">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#55657A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3 4v4.5h4.5"/></svg>
+        <span>Qazoga qo'shish<span class="sm">Keyinroq qaytarasiz</span></span>
+      </button>
+    </div>
+    <div class="jam">
+      <span class="l"><b>Jamoat bilan o'qidim</b><s>Statistikada alohida ko'rinadi</s></span>
+      <span class="tg"><i></i></span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

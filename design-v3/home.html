@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Bosh sahifa</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<style>
+/* ============================================================
+   Every value below is traced to design-system.md.
+   Deviations are marked ADAPTED with a reason.
+   ============================================================ */
+
+:root{
+  /* §1 measured colour */
+  --page:      #F8F2EA;
+  --surface:   #F6EFE6;   /* 2-4 units from --page. separation is shadow, never fill */
+  --glow-peak: #E8B762;
+  --glow-edge: #F9E7C5;
+  --ink:       #0F0E0C;   /* measured darkest = #000000 */
+  --ink-warm:  #50320F;   /* hero numerals only */
+  --tab-on:    #553111;
+  --tab-off:   #635E4E;
+  --accent:    #E66A43;
+  --hairline:  #EBD2B2;
+  --pill:      #F4EDDD;
+
+  /* §2 measured layout */
+  --gutter: 20px;
+  --card-w: 82px;
+  --card-gap: 8px;
+
+  /* the only elevation device, because fills are identical */
+  --lift: 0 1px 2px rgba(122,92,48,.05), 0 6px 18px rgba(122,92,48,.08);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  width:390px;height:844px;overflow:hidden;
+  font-family:'Onest',system-ui,sans-serif;
+  color:var(--ink);
+  background:var(--page);
+  -webkit-font-smoothing:antialiased;
+}
+
+.screen{position:relative;width:100%;height:100%;display:flex;flex-direction:column}
+
+/* §4.7 the page is not a flat fill — pastel bleed + grain */
+.bleed{
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(52% 30% at 6% 2%,   rgba(206,214,150,.30) 0%, transparent 70%),
+    radial-gradient(48% 26% at 98% 34%, rgba(198,186,222,.26) 0%, transparent 72%),
+    radial-gradient(60% 30% at 2% 92%,  rgba(232,186,192,.30) 0%, transparent 72%);
+}
+.grain{
+  position:absolute;inset:0;pointer-events:none;opacity:.30;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* §2 the hero has NO boundary. radial glow, full bleed, dissolves by ~250pt */
+.glow{
+  position:absolute;left:0;right:0;top:0;height:420px;pointer-events:none;
+  background:radial-gradient(120% 74% at 50% 40%,
+    var(--glow-peak) 0%,
+    #EAC079 26%,
+    #F2D399 48%,
+    var(--glow-edge) 70%,
+    rgba(248,242,234,0) 94%);
+}
+
+/* ---------- status ---------- */
+.status{
+  position:relative;height:54px;flex:none;
+  display:flex;align-items:center;padding:0 var(--gutter);
+  font-size:15px;font-weight:600;color:var(--ink-warm);
+}
+.status .r{margin-left:auto;display:flex;align-items:center;gap:5px;opacity:.85}
+
+/* ---------- header ---------- */
+.head{
+  position:relative;height:44px;flex:none;
+  display:flex;align-items:center;padding:0 var(--gutter);
+}
+.head .title{
+  position:absolute;left:0;right:0;text-align:center;
+  font-size:17px;font-weight:700;letter-spacing:-.2px;color:var(--ink);
+}
+.head button{
+  position:relative;z-index:1;width:28px;height:28px;border:0;background:none;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);
+}
+.head .sp{flex:1}
+
+/* ---------- hero ---------- */
+.hero{position:relative;flex:none;padding:0 var(--gutter);margin-top:4px}
+
+  .mosque{position:absolute;left:50%;transform:translateX(-50%);bottom:-10px;
+           width:336px;opacity:.60;pointer-events:none;
+           filter:brightness(1.05) contrast(1.04) saturate(.9)}
+
+.clock{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  gap:2px;height:130px;
+}
+.clock b{
+  font-size:78px;font-weight:900;line-height:1;letter-spacing:-2.5px;
+  color:var(--ink-warm);font-variant-numeric:tabular-nums;
+}
+/* the reference sets a crescent where the colon's upper dot would sit */
+.sep{display:flex;flex-direction:column;align-items:center;gap:4px;margin:0 14px;padding-bottom:6px}
+.sep img{width:30px;height:30px;display:block}
+.sep i{display:block;width:7px;height:18px;border-radius:4px;background:var(--ink-warm)}
+
+/* two columns split by a rule — straight from the reference */
+.meta{
+  position:relative;display:flex;align-items:center;margin-top:2px;
+}
+.meta .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.meta .k{font-size:10px;font-weight:500;letter-spacing:.9px;text-transform:uppercase;color:#6B5C46}
+.meta .v{font-size:17px;font-weight:700;color:var(--ink)}
+.meta .rule{width:1px;height:34px;background:var(--hairline)}
+
+/* ---------- quick actions ---------- */
+.quick{
+  position:relative;margin:20px var(--gutter) 0;padding:16px 8px;
+  background:var(--surface);border-radius:24px;box-shadow:var(--lift);
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px 0;
+}
+.quick a{text-decoration:none;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:9px}
+.quick img{width:40px;height:40px;display:block}
+.quick span{font-size:13px;font-weight:500;color:var(--ink)}
+
+/* ---------- section ---------- */
+.sec{
+  position:relative;margin:18px var(--gutter) 0;
+  display:flex;align-items:baseline;
+}
+.sec h2{font-size:20px;font-weight:700;letter-spacing:-.2px}
+.sec a{margin-left:auto;flex:none;font-size:13px;font-weight:500;color:#7A6A54;text-decoration:none}
+
+/* ---------- prayer row: 82pt cards, 8pt gaps, 5th peeks ---------- */
+.times{
+  position:relative;margin-top:14px;padding-left:var(--gutter);
+  display:flex;gap:var(--card-gap);overflow:hidden;
+}
+.t{
+  flex:none;width:var(--card-w);padding:13px 6px 14px;
+  background:var(--surface);border-radius:20px;box-shadow:var(--lift);
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+}
+.t img{width:32px;height:32px;display:block}
+.t .n{font-size:13px;font-weight:500;color:var(--ink)}
+.t .v{font-size:16px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+/* ADAPTED: the reference has no "current" state. the product needs one, so the
+   active card is lifted with the measured accent rather than a new fill. */
+.t.on{box-shadow:0 2px 4px rgba(230,106,67,.14), 0 8px 22px rgba(230,106,67,.20)}
+.t.on .v{color:var(--accent)}
+
+/* wide card — the reference's 'Last Read' component, reused */
+.wide{
+  position:relative;margin:14px var(--gutter) 0;padding:15px 18px;
+  border-radius:22px;overflow:hidden;text-decoration:none;color:var(--ink-warm);
+  background:linear-gradient(104deg, #F0C87E 0%, #E9B563 52%, #E3A748 100%);
+  box-shadow:0 2px 4px rgba(150,110,45,.10), 0 10px 24px rgba(150,110,45,.16);
+  display:flex;align-items:center;gap:14px;
+}
+.wide .wm{position:absolute;right:-10px;bottom:-14px;width:210px;opacity:.34}
+.wide .wl{position:relative;flex:1;display:flex;flex-direction:column;gap:2px}
+.wide .wk{font-size:10px;font-weight:500;letter-spacing:.9px;text-transform:uppercase;opacity:.78}
+.wide .wv{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.wide .ws{font-size:12px;font-weight:500;opacity:.78}
+.wide img{position:relative;width:42px;height:42px;flex:none}
+
+/* ---------- tabs ---------- */
+nav{
+  position:relative;margin-top:auto;height:76px;flex:none;
+  display:flex;align-items:flex-start;padding:12px 6px 0;
+  background:linear-gradient(180deg, rgba(248,242,234,0) 0%, var(--page) 34%);
+}
+nav a{flex:1;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--tab-off)}
+nav a.on{color:var(--tab-on)}
+nav span{font-size:11px;font-weight:500}
+nav a.on span{font-weight:700}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow"></div>
+  <div class="bleed"></div>
+
+  <div class="status">
+    9:41
+    <span class="r">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.6 6 8.3a3 3 0 0 1 4 0zM8 5.4a6 6 0 0 0-4.3 1.8L2.3 5.7a8 8 0 0 1 11.4 0l-1.4 1.5A6 6 0 0 0 8 5.4M8 .8a10.6 10.6 0 0 0-7.6 3.2L-1 2.5a12.6 12.6 0 0 1 18 0l-1.4 1.5A10.6 10.6 0 0 0 8 .8"/></svg>
+      <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+    </span>
+  </div>
+
+  <div class="head">
+    <button type="button" aria-label="Menyu">
+      <svg width="20" height="14" viewBox="0 0 20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 1h18M1 7h18M1 13h11"/></svg>
+    </button>
+    <span class="title">Mizan</span>
+    <span class="sp"></span>
+    <button type="button" aria-label="Qidirish">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.6" cy="8.6" r="6.4"/><path d="M13.4 13.4 18 18"/></svg>
+    </button>
+  </div>
+
+  <div class="hero">
+    <img class="mosque" src="assets/img/hero-mosque.png" alt="">
+
+    <div class="clock">
+      <b>18</b>
+      <span class="sep">
+        <img src="assets/icons/maghrib.png" alt="">
+        <i></i>
+      </span>
+      <b>36</b>
+    </div>
+
+    <div class="meta">
+      <span class="col">
+        <span class="k">Qolgan vaqt</span>
+        <span class="v">Shom 0:53:30</span>
+      </span>
+      <span class="rule"></span>
+      <span class="col">
+        <span class="k">29 sentabr</span>
+        <span class="v">Toshkent</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="quick">
+    <a href="#"><img src="assets/icons/alarm.png" alt=""><span>Uyg'otgich</span></a>
+    <a href="#"><img src="assets/icons/lock.png" alt=""><span>Fokus</span></a>
+    <a href="#"><img src="assets/icons/compass.png" alt=""><span>Qibla</span></a>
+    <a href="#"><img src="assets/icons/tasbih.png" alt=""><span>Tasbeh</span></a>
+    <a href="#"><img src="assets/icons/chart.png" alt=""><span>Statistika</span></a>
+    <a href="#"><img src="assets/icons/gift.png" alt=""><span>Ehson</span></a>
+  </div>
+
+  <div class="sec">
+    <h2>Namoz vaqtlari</h2>
+    <a href="#">Barchasi</a>
+  </div>
+
+  <div class="times">
+    <div class="t"><img src="assets/icons/fajr.png" alt=""><span class="n">Bomdod</span><span class="v">05:36</span></div>
+    <div class="t"><img src="assets/icons/dhuhr.png" alt=""><span class="n">Peshin</span><span class="v">12:25</span></div>
+    <div class="t"><img src="assets/icons/asr.png" alt=""><span class="n">Asr</span><span class="v">16:32</span></div>
+    <div class="t on"><img src="assets/icons/maghrib.png" alt=""><span class="n">Shom</span><span class="v">18:36</span></div>
+    <div class="t"><img src="assets/icons/isha.png" alt=""><span class="n">Xufton</span><span class="v">20:02</span></div>
+  </div>
+
+  <a class="wide" href="#">
+    <svg class="wm" viewBox="0 0 330 96" fill="#FFFDF8" aria-hidden="true">
+      <path d="M24 96V44c0-4 2-6 5-6s5 2 5 6v52z"/>
+      <path d="M296 96V44c0-4 2-6 5-6s5 2 5 6v52z"/>
+      <path d="M92 96V56c0-18 14-32 36-33 3-9 14-16 27-16s24 7 27 16c22 1 36 15 36 33v40z"/>
+      <path d="M155 16c-5-6-8-8-8-12s3-6 8-6 8 2 8 6-3 6-8 12z"/>
+    </svg>
+    <span class="wl">
+      <span class="wk">Ertaga</span>
+      <span class="wv">Bomdod 05:34</span>
+      <span class="ws">Uyg'otgich yoqilgan</span>
+    </span>
+    <img src="assets/icons/alarm.png" alt="">
+  </a>
+
+  <nav>
+    <a class="on" href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.3 3.3a1 1 0 0 1 1.4 0l8 7.4a1 1 0 0 1 .3.8V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-8.5a1 1 0 0 1 .3-.8z"/></svg>
+      <span>Bosh</span>
+    </a>
+    <a href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.3V12l3.3 2" stroke-linecap="round"/></svg>
+      <span>Vaqtlar</span>
+    </a>
+    <a href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.6V11"/><path d="M12 11C12 7.2 9.3 5.2 5.3 5.2 5.3 9 8 11 12 11z"/><path d="M12 11c0-3.1 2.3-4.8 5.6-4.8C17.6 9.3 15.3 11 12 11z"/></svg>
+      <span>Bog'</span>
+    </a>
+    <a href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.4 4.7 13.2a4.5 4.5 0 1 1 7.3-5.1 4.5 4.5 0 1 1 7.3 5.1z"/></svg>
+      <span>Ehson</span>
+    </a>
+  </nav>
+
+  <div class="grain"></div>
+</div>
+</body>
+</html>

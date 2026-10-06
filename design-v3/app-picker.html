@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Ilovalar</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  .cnt{padding:6px 13px;border-radius:999px;background:var(--surface);box-shadow:var(--lift);
+       font-size:13px;font-weight:800;color:var(--ink)}
+  .search{position:relative;margin:0 var(--gutter) 4px;padding:12px 15px;border-radius:17px;
+          background:var(--surface);box-shadow:var(--lift);display:flex;align-items:center;gap:11px;flex:none}
+  .search input{flex:1;border:0;background:none;outline:none;font-family:'Onest',sans-serif;
+                font-size:14px;font-weight:500;color:var(--ink)}
+  .tile{width:36px;height:36px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;
+        background:linear-gradient(148deg,#F0B45E,#B4548F);color:#fff;font-size:15px;font-weight:800}
+  .k{width:24px;height:24px;border-radius:8px;flex:none;box-shadow:inset 0 0 0 2px rgba(80,50,15,.16)}
+  .k.on{background:var(--accent);box-shadow:none;display:flex;align-items:center;justify-content:center}
+  .safe{position:relative;margin:16px var(--gutter) 0;padding:14px 16px;border-radius:19px;
+        background:#F0F2F5;display:flex;gap:11px;align-items:flex-start;flex:none;
+        font-size:12.5px;line-height:1.5;font-weight:500;color:#55657A}
+  .safe svg{flex:none;margin-top:1px}
+</style>
+</head>
+<body>
+<div class="screen"><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+  <div class="bar"><a class="ic" href="focus-home.html" aria-label="Orqaga"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19 8 12l7-7"/></svg></a><h1>Ilovalar</h1><span class="cnt">4</span></div>
+  <div class="search">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A08B70" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
+    <input type="text" placeholder="Ilovani qidirish" aria-label="Ilovani qidirish">
+  </div>
+  <div class="lbl">Eng ko'p vaqt oladiganlar</div>
+  <div class="list">
+    <div class="li"><span class="tile">I</span><span class="l"><b>Instagram</b><s>Kuniga 2s 14d</s></span><span class="k on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+    <div class="li"><span class="tile">T</span><span class="l"><b>TikTok</b><s>Kuniga 1s 48d</s></span><span class="k on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+    <div class="li"><span class="tile">Y</span><span class="l"><b>YouTube</b><s>Kuniga 1s 06d</s></span><span class="k on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+    <div class="li"><span class="tile">T</span><span class="l"><b>Telegram</b><s>Kuniga 52d</s></span><span class="k on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+  </div>
+  <div class="lbl">Boshqa ilovalar</div>
+  <div class="list">
+    <div class="li"><span class="tile">W</span><span class="l"><b>WhatsApp</b><s>Kuniga 24d</s></span><span class="k"></span></div>
+    <div class="li"><span class="tile">U</span><span class="l"><b>Uzum Market</b><s>Kuniga 11d</s></span><span class="k"></span></div>
+  </div>
+  <div class="safe">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4E6480" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 16v-4.5M12 8h.01"/></svg>
+    Telefon, SMS va xarita ilovalari hech qachon bloklanmaydi.
+  </div>
+
+
+  <div class="grain"></div>
+</div>
+</body>
+</html>

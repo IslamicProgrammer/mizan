@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Mizan — logo</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@500;700;800&display=swap">
+<style>
+  :root{--cream:#F8F2EA;--brown:#50320F;--gold:#E8B762}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font:500 14px Onest,system-ui,sans-serif;background:var(--cream);color:var(--brown);padding:56px 48px}
+  h1{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.45;margin-bottom:18px}
+  section{margin-bottom:56px}
+  .band{padding:44px;border-radius:26px;background:#fff}
+  .band.dark{background:var(--brown)}
+  .band img{height:190px;display:block}
+  .row{display:flex;gap:40px;align-items:flex-end;flex-wrap:wrap}
+  .cell{text-align:center}
+  .cell span{display:block;margin-top:10px;font-size:11px;opacity:.5}
+  .tiles{display:flex;gap:26px;align-items:flex-end}
+  .wall{display:flex;gap:18px;padding:26px;border-radius:26px;background:#DED5C8;align-items:center}
+  .wall img{width:74px;height:74px;border-radius:17px}
+</style></head><body>
+
+<section><h1>Primary lockup</h1>
+  <div class="band"><img src="logo.svg" alt="Mizan"></div></section>
+
+<section><h1>On brown</h1>
+  <div class="band dark"><img src="logo-onbrown.svg" alt="Mizan"></div></section>
+
+<section><h1>One colour, no tile</h1>
+  <div class="row">
+    <div class="band" style="flex:1"><img src="logo-bare.svg" alt=""></div>
+    <div class="band dark" style="flex:1"><img src="logo-bare-gold.svg" alt=""></div>
+  </div></section>
+
+<section><h1>App icon</h1>
+  <div class="tiles">
+    <div class="cell"><img src="export/icon-192.png" width="128"><span>128</span></div>
+    <div class="cell"><img src="export/icon-64.png" width="64"><span>64</span></div>
+    <div class="cell"><img src="export/icon-48.png" width="48"><span>48 · launcher</span></div>
+    <div class="cell"><img src="export/icon-32.png" width="32"><span>32</span></div>
+    <div class="cell"><img src="export/icon-16.png" width="16"><span>16</span></div>
+    <div class="cell"><img src="icon-light.svg" width="128"><span>light tile</span></div>
+  </div></section>
+
+<section><h1>Beside other launcher icons</h1>
+  <div class="wall">
+    <img src="../../design-v3/assets/icons/spiral_calendar_3d.png" style="background:#fff">
+    <img src="export/icon-192.png">
+    <img src="../../design-v3/assets/icons/bell_3d.png" style="background:#fff">
+    <img src="../../design-v3/assets/icons/red_heart_3d.png" style="background:#fff">
+  </div></section>
+
+</body></html>

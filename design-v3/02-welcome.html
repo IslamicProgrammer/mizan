@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Xush kelibsiz</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="onb.css">
+<style>
+  .glow{height:520px}
+  .shot{position:relative;flex:none;height:300px;margin-top:2px;display:flex;
+        align-items:flex-end;justify-content:center;overflow:hidden}
+  .shot img{width:330px;opacity:.9;filter:saturate(.94)}
+  .pitch{position:relative;padding:0 var(--gutter);margin-top:20px;text-align:center;flex:none}
+  .pitch h1{font-size:29px;font-weight:800;line-height:1.24;letter-spacing:-.7px}
+  .pitch p{margin-top:12px;font-size:14.5px;line-height:1.6;color:var(--ink-soft)}
+  .three{position:relative;padding:0 var(--gutter);margin-top:24px;display:flex;gap:10px;flex:none}
+  .three div{flex:1;padding:14px 8px;border-radius:20px;background:var(--surface);box-shadow:var(--lift);
+             display:flex;flex-direction:column;align-items:center;gap:8px}
+  .three img{width:30px;height:30px}
+  .three b{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .dots{display:flex;justify-content:center;gap:7px;padding-bottom:16px}
+  .dots i{width:7px;height:7px;border-radius:50%;background:#E0D3BE}
+  .dots i.on{width:22px;background:var(--ink-warm)}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow"></div><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+
+  <div class="shot"><img src="assets/img/hero-mosque.png" alt=""></div>
+
+  <div class="pitch">
+    <h1>Namozni himoya qiling</h1>
+    <p>Bomdodga uyg'oning, namoz vaqtida telefonni jim qiling, muntazamlikni ko'ring.</p>
+  </div>
+
+  <div class="three">
+    <div><img src="assets/icons/alarm.png" alt=""><b>Uyg'oning</b></div>
+    <div><img src="assets/icons/lock.png" alt=""><b>Fokus</b></div>
+    <div><img src="assets/icons/gift.png" alt=""><b>Ehson</b></div>
+  </div>
+
+  <div class="foot">
+    <div class="dots"><i class="on"></i><i></i><i></i></div>
+    <a class="act" href="03-gender.html">Boshlash</a>
+  </div>
+  <div class="grain"></div>
+</div>
+</body>
+</html>

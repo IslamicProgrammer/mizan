@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Fokus</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  .state{position:relative;margin:4px var(--gutter) 0;padding:16px 18px;border-radius:24px;
+        background:linear-gradient(150deg,#FCEBC7,#F3C87E);box-shadow:var(--lift-hi);
+        display:flex;align-items:center;gap:14px;flex:none}
+  .state img{width:40px;height:40px}
+  .state .l{flex:1;display:flex;flex-direction:column;gap:2px}
+  .state .l b{font-size:16px;font-weight:800;color:#40290C}
+  .state .l s{font-size:12.5px;font-weight:600;color:#8A5A11;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow soft"></div><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+  <div class="bar"><a class="ic" href="home.html" aria-label="Orqaga"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19 8 12l7-7"/></svg></a><h1>Fokus</h1><a class="ic" href="focus-stats.html" aria-label="Statistika"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 20V12M12 20V5M19 20v-6"/></svg></a></div>
+  <div class="state">
+    <img src="assets/icons/shield.png" alt="">
+    <span class="l"><b>Fokus yoqilgan</b><s>Keyingi bloklash: Asr · 16:34</s></span>
+    <span class="tg on"><i></i></span>
+  </div>
+  <div class="lbl">Rejim</div>
+  <div class="list">
+    <div class="li "><img src="assets/icons/feather.png" alt=""><span class="l"><b>Yumshoq</b><s>Faqat eslatma, bloklash yo'q</s></span></div>
+    <div class="li on"><img src="assets/icons/lock.png" alt=""><span class="l"><b>Fokus</b><s>Namoz vaqtida ilovalar yopiladi</s></span></div>
+    <div class="li "><img src="assets/icons/focus_deep.png" alt=""><span class="l"><b>Chuqur fokus</b><s>Namozdan oldin va keyin ham</s></span><span class="r">PREMIUM</span></div>
+  </div>
+  <div class="lbl">Qaysi namozlarda</div>
+  <div class="list">
+    <div class="li "><span class="l"><b>Bomdod</b></span><span class="r"><span class="tg on"><i></i></span></span></div>
+    <div class="li "><span class="l"><b>Peshin</b></span><span class="r"><span class="tg on"><i></i></span></span></div>
+    <div class="li "><span class="l"><b>Asr</b></span><span class="r"><span class="tg on"><i></i></span></span></div>
+    <div class="li "><span class="l"><b>Shom</b></span><span class="r"><span class="tg"><i></i></span></span></div>
+    <div class="li "><span class="l"><b>Xufton</b></span><span class="r"><span class="tg on"><i></i></span></span></div>
+  </div>
+  <div class="lbl">Ilovalar</div>
+  <div class="list">
+    <a class="li " href="app-picker.html"><img src="assets/icons/apps.png" alt=""><span class="l"><b>Bloklanadigan ilovalar</b><s>4 ta tanlangan</s></span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></a>
+  </div>
+
+
+  <div class="grain"></div>
+</div>
+</body>
+</html>

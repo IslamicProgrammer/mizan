@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Skaner</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* ADAPTED: the reference has no camera screen (design-system.md §5).
+     The framing device is borrowed from the one circular component the reference
+     DOES have — the Qibla compass: thin ring, tick dots, one amber arc. That keeps
+     the scanner inside the app's own language instead of generic camera brackets. */
+  body{background:#1A1512}
+
+  .feed{position:absolute;inset:0;overflow:hidden}
+  .feed img{
+    position:absolute;inset:0;width:100%;height:100%;
+    object-fit:cover;object-position:50% 58%;
+    filter:brightness(.92) saturate(.96);
+  }
+  .vig{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(56% 33% at 50% 46%, transparent 0%, rgba(26,21,18,.52) 76%, rgba(26,21,18,.90) 100%),
+      linear-gradient(180deg, rgba(26,21,18,.88) 0%, transparent 21%, transparent 60%, rgba(26,21,18,.96) 90%);
+  }
+
+  /* ---------- top ---------- */
+  .top{position:relative;padding:54px var(--gutter) 0;display:flex;align-items:flex-start;gap:14px;flex:none}
+  .top a{width:34px;height:34px;margin-left:-6px;display:flex;align-items:center;color:#F3E9DA;text-decoration:none}
+  .top .who{flex:1;display:flex;flex-direction:column;gap:3px;padding-top:2px}
+  .top .k{font-size:10px;font-weight:500;letter-spacing:.9px;text-transform:uppercase;color:#B0A08C}
+  .top .v{font-size:22px;font-weight:800;color:#FBF3E6;letter-spacing:-.3px}
+  .top .t{font-size:16px;font-weight:700;color:var(--glow-peak);padding-top:5px;font-variant-numeric:tabular-nums}
+
+  /* ---------- the ring ---------- */
+  .aim{position:relative;flex:1;display:flex;align-items:center;justify-content:center}
+  .ring{position:relative;width:268px;height:268px}
+  .ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+  .ring .pct{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:flex-end;padding-bottom:52px;gap:1px;
+  }
+  .ring .pct b{
+    font-size:36px;font-weight:800;color:#FBF3E6;letter-spacing:-1px;
+    font-variant-numeric:tabular-nums;text-shadow:0 2px 14px rgba(0,0,0,.55);
+  }
+  .ring .pct s{
+    font-size:11px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;
+    color:var(--glow-peak);text-decoration:none;
+  }
+
+  /* ---------- bottom ---------- */
+  .bot{position:relative;padding:0 var(--gutter) 40px;flex:none}
+
+  .state{
+    display:flex;align-items:center;gap:13px;padding:14px 17px;border-radius:22px;
+    background:var(--pill);box-shadow:0 10px 30px rgba(0,0,0,.44);
+  }
+  .state img{width:34px;height:34px;flex:none}
+  .state .l{flex:1;display:flex;flex-direction:column;gap:2px}
+  .state .l b{font-size:15px;font-weight:700;color:var(--ink)}
+  .state .l s{font-size:12px;font-weight:500;color:#7A6A54;text-decoration:none}
+
+  .note{
+    margin-top:20px;display:flex;gap:10px;align-items:flex-start;
+    font-size:12.5px;line-height:1.55;color:#A0937F;font-weight:500;
+  }
+  .note svg{flex:none;margin-top:2px;opacity:.7}
+
+  .escape{margin-top:18px;text-align:center;font-size:12.5px;font-weight:500;color:#7D7160}
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <div class="feed">
+    <img src="assets/img/scan-floor.jpg" alt="">
+    <div class="vig"></div>
+  </div>
+
+  <div class="top">
+    <a href="#" aria-label="Yopish">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </a>
+    <span class="who">
+      <span class="k">Kamerani qarating</span>
+      <span class="v">Joynamoz</span>
+    </span>
+    <span class="t">05:36</span>
+  </div>
+
+  <div class="aim">
+    <div class="ring">
+      <svg width="268" height="268" viewBox="0 0 268 268" fill="none">
+        <circle cx="134" cy="134" r="124" stroke="rgba(243,233,218,.20)" stroke-width="2"/>
+        <circle cx="134" cy="134" r="124" stroke="#E9B563" stroke-width="4"
+                stroke-linecap="round" stroke-dasharray="452 327"/>
+        <circle cx="134" cy="26"  r="3" fill="rgba(243,233,218,.34)"/>
+        <circle cx="242" cy="134" r="3" fill="rgba(243,233,218,.34)"/>
+        <circle cx="134" cy="242" r="3" fill="rgba(243,233,218,.34)"/>
+        <circle cx="26"  cy="134" r="3" fill="rgba(243,233,218,.34)"/>
+      </svg>
+      <span class="pct">
+        <b>58%</b>
+        <s>qidirilmoqda</s>
+      </span>
+    </div>
+  </div>
+
+  <div class="bot">
+    <div class="state">
+      <img src="assets/icons/camera.png" alt="">
+      <span class="l">
+        <b>Joynamozni kadrga oling</b>
+        <s>Butun gilam ko'rinib tursin</s>
+      </span>
+    </div>
+
+    <div class="note">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 19 6v6c0 4.4-3 7.6-7 8.8-4-1.2-7-4.4-7-8.8V6z"/></svg>
+      Rasm saqlanmaydi va hech qayerga yuborilmaydi. Ilova buyumni ko'rganini tasdiqlaydi, namoz o'qiganingizni emas.
+    </div>
+
+    <div class="escape">o'chirish uchun 10 soniya bosib turing</div>
+  </div>
+
+</div>
+</body>
+</html>

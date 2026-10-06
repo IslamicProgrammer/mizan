@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Uyg'otgich</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="onb.css">
+<style>
+  .steps{position:relative;padding:0 var(--gutter);margin-top:24px;flex:none}
+  .st{display:flex;gap:15px}
+  .st .rail{width:44px;flex:none;display:flex;flex-direction:column;align-items:center}
+  .st .rail span{width:44px;height:44px;border-radius:15px;background:var(--surface);box-shadow:var(--lift);
+                 display:flex;align-items:center;justify-content:center}
+  .st .rail span img{width:24px;height:24px}
+  .st .rail i{width:2px;flex:1;background:rgba(80,50,15,.12)}
+  .st .tx{flex:1;padding-bottom:20px}
+  .st .tx b{display:block;font-size:16px;font-weight:700;color:var(--ink)}
+  .st .tx p{margin-top:4px;font-size:13px;line-height:1.5;color:var(--ink-soft)}
+  .st:last-child .tx{padding-bottom:0}
+</style>
+</head>
+<body>
+<div class="screen"><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+
+  <div class="prog">
+    <a href="09-timeconfirm.html" aria-label="Orqaga"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19 8 12l7-7"/></svg></a>
+    <span class="track"><i style="width:83%"></i></span><span class="n">10 / 12</span>
+  </div>
+
+  <div class="ask">
+    <h1>Bomdodda o'rningizdan turishga majbur qiladi</h1>
+    <p>Oddiy budilnikni yotgan joyda o'chirib yuborasiz. Bu boshqacha ishlaydi.</p>
+  </div>
+
+  <div class="steps">
+    <div class="st">
+      <span class="rail"><span><img src="assets/icons/alarm.png" alt=""></span><i></i></span>
+      <span class="tx"><b>Signal boshlanadi</b><p>Ovoz asta-sekin kuchayadi. Ekranda bitta tugma.</p></span>
+    </div>
+    <div class="st">
+      <span class="rail"><span><img src="assets/icons/camera.png" alt=""></span><i></i></span>
+      <span class="tx"><b>Turib skanerlaysiz</b><p>Joynamozni kameraga ko'rsatasiz — buning uchun o'rningizdan turishingiz kerak.</p></span>
+    </div>
+    <div class="st">
+      <span class="rail"><span><img src="assets/icons/check.png" alt=""></span></span>
+      <span class="tx"><b>Signal to'xtaydi</b><p>Endi siz oyoqdasiz. Qolgani sizga bog'liq.</p></span>
+    </div>
+  </div>
+
+  <div class="note">
+    <img src="assets/icons/shield.png" alt="">
+    <p>Ilova buyumni ko'rganini tasdiqlaydi, <b>namoz o'qiganingizni emas</b>. Zarur bo'lsa signalni 10 soniya bosib turib o'chirasiz.</p>
+  </div>
+
+  <div class="foot"><a class="act" href="11-scanobject.html">Yoqish</a></div>
+  <div class="grain"></div>
+</div>
+</body>
+</html>

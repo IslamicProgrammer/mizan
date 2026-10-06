@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Bosh sahifa (Uzbek)</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<style>
+/* ============================================================
+   Uzbek identity. Structure and measurements stay from
+   design-system.md; the palette and ornament come from Timurid
+   Samarkand instead of the generic gold-dome default.
+   ============================================================ */
+:root{
+  /* Registan tilework */
+  --cobalt:    #123A66;
+  --cobalt-dp: #0C2A4D;
+  --turq:      #2FA8A3;
+  --turq-lt:   #49C7C2;
+  --gold:      #D2A24E;
+
+  /* warm plaster + brick below the tile line */
+  --page:      #F4EDE0;
+  --surface:   #F1E9DA;   /* §1: 2-4 units from --page. shadow separates, never fill */
+  --ink:       #14202C;
+  --ink-soft:  #6E7886;
+
+  /* §2 measured layout, unchanged */  --gutter: 20px;
+  --card-w: 82px;
+  --card-gap: 8px;
+  --lift: 0 1px 2px rgba(20,40,70,.05), 0 6px 18px rgba(20,40,70,.09);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  width:390px;height:844px;overflow:hidden;background:var(--page);
+  font-family:'Onest',system-ui,sans-serif;color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+.screen{position:relative;height:100%;display:flex;flex-direction:column}
+
+/* ---------- the iwan: a tiled vault whose underside is a pointed arch ---------- */
+.iwan{
+  position:absolute;left:0;right:0;top:0;height:372px;
+  background:var(--cobalt) url("assets/girih.svg");
+  background-size:88px 88px;
+  clip-path:path('M0 0H390V226C340 306 252 352 195 360C138 352 50 306 0 226Z');
+}
+/* a gold kundal line tracing the arch, as in Bukharan interiors */
+.iwan-line{
+  position:absolute;left:0;right:0;top:0;height:372px;pointer-events:none;
+}
+.vign{
+  position:absolute;left:0;right:0;top:0;height:372px;pointer-events:none;
+  background:radial-gradient(78% 62% at 50% 34%, rgba(18,58,102,0) 0%, rgba(9,32,58,.55) 100%);
+  clip-path:path('M0 0H390V226C340 306 252 352 195 360C138 352 50 306 0 226Z');
+}
+
+/* ---------- chrome ---------- */
+.status{position:relative;height:54px;flex:none;display:flex;align-items:center;
+        padding:0 var(--gutter);font-size:15px;font-weight:600;color:#DCE8F0}
+.status .r{margin-left:auto;display:flex;gap:5px;opacity:.9}
+.head{position:relative;height:42px;flex:none;display:flex;align-items:center;padding:0 var(--gutter)}
+.head .title{position:absolute;left:0;right:0;text-align:center;font-size:16px;
+             font-weight:700;letter-spacing:2.4px;color:var(--gold)}
+.head button{position:relative;z-index:1;width:28px;height:28px;border:0;background:none;
+             display:flex;align-items:center;justify-content:center;color:#CFE0EC;cursor:pointer}
+.head .sp{flex:1}
+
+/* ---------- hero ---------- */
+.hero{position:relative;flex:none;padding:0 var(--gutter);text-align:center;margin-top:6px}
+.kicker{font-size:10px;font-weight:600;letter-spacing:1.8px;color:var(--turq-lt);text-transform:uppercase}
+.clock{margin-top:4px;display:flex;align-items:center;justify-content:center}
+.clock b{font-size:76px;font-weight:900;line-height:1;letter-spacing:-2.4px;
+         color:#F6F1E6;font-variant-numeric:tabular-nums}
+.clock i{display:block;width:7px;height:7px;border-radius:50%;background:var(--gold);margin:0 13px}
+.clock .sep{display:flex;flex-direction:column;gap:13px}
+.name{margin-top:6px;font-size:19px;font-weight:700;color:var(--gold);letter-spacing:.2px}
+.meta{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:14px;
+      font-size:12.5px;font-weight:500;color:#A9C2D4}
+.meta em{font-style:normal;width:3px;height:3px;border-radius:50%;background:#5B7E9C}
+
+/* ---------- quick grid ---------- */
+.quick{position:relative;margin:26px var(--gutter) 0;padding:18px 8px;border-radius:24px;
+       background:var(--surface);box-shadow:var(--lift);
+       display:grid;grid-template-columns:repeat(3,1fr);gap:18px 0}
+.quick a{text-decoration:none;color:var(--ink);display:flex;flex-direction:column;
+         align-items:center;gap:9px}
+.quick .g{width:44px;height:44px;border-radius:14px;background:#E6DDCB;
+          display:flex;align-items:center;justify-content:center}
+.quick span{font-size:13px;font-weight:500}
+
+/* ---------- section + prayer row (measured: 82pt cards, 8pt gaps, 5th peeks) ---------- */
+.sec{position:relative;margin:22px var(--gutter) 0;display:flex;align-items:baseline}
+.sec h2{font-size:20px;font-weight:700;letter-spacing:-.2px}
+.sec a{margin-left:auto;flex:none;font-size:13px;font-weight:500;color:#7C8796;text-decoration:none}
+.times{position:relative;margin-top:13px;padding-left:var(--gutter);display:flex;
+       gap:var(--card-gap);overflow:hidden}
+.t{flex:none;width:var(--card-w);padding:12px 6px 13px;border-radius:20px;
+   background:var(--surface);box-shadow:var(--lift);
+   display:flex;flex-direction:column;align-items:center;gap:6px}
+.t .n{font-size:12.5px;font-weight:500;color:var(--ink-soft)}
+.t .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.t.on{background:var(--cobalt);box-shadow:0 2px 4px rgba(18,58,102,.2),0 10px 24px rgba(18,58,102,.3)}
+.t.on .n{color:var(--turq-lt)}
+.t.on .v{color:#F6F1E6}
+
+/* ---------- next-up strip ---------- */
+.wide{position:relative;margin:16px var(--gutter) 0;padding:14px 16px;border-radius:22px;
+      overflow:hidden;text-decoration:none;display:flex;align-items:center;gap:13px;
+      background:var(--cobalt) url("assets/girih.svg");background-size:88px 88px;
+      box-shadow:0 2px 4px rgba(12,42,77,.2),0 10px 24px rgba(12,42,77,.26)}
+.wide .wl{flex:1;display:flex;flex-direction:column;gap:2px}
+.wide .wk{font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--turq-lt)}
+.wide .wv{font-size:19px;font-weight:800;color:#F6F1E6;letter-spacing:-.3px}
+.wide .ws{font-size:12px;font-weight:500;color:#A9C2D4}
+.wide .badge{width:44px;height:44px;border-radius:14px;background:rgba(73,199,194,.18);
+             display:flex;align-items:center;justify-content:center;flex:none}
+
+/* ---------- tabs ---------- */
+nav{position:relative;margin-top:auto;height:74px;flex:none;display:flex;
+    align-items:flex-start;padding:12px 6px 0;border-top:1px solid rgba(20,32,44,.07)}
+nav a{flex:1;text-decoration:none;display:flex;flex-direction:column;align-items:center;
+      gap:5px;color:#8C97A4}
+nav a.on{color:var(--cobalt)}
+nav span{font-size:11px;font-weight:500}
+nav a.on span{font-weight:700}
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- geometric icon set, drawn for this app: octagram, arch and tile motifs -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol id="i-alarm" viewBox="0 0 32 32">
+      <circle cx="16" cy="18" r="10" fill="none" stroke="#2FA8A3" stroke-width="2.4"/>
+      <path d="M16 12v6l4 2.6" fill="none" stroke="#D2A24E" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M6 8l4-3M26 8l-4-3" stroke="#2FA8A3" stroke-width="2.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-focus" viewBox="0 0 32 32">
+      <path d="M16 3l11 4.4v8.4c0 6.4-4.6 10.9-11 12.8-6.4-1.9-11-6.4-11-12.8V7.4z"
+            fill="none" stroke="#2FA8A3" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M11 16.4l3.6 3.6L21.6 13" fill="none" stroke="#D2A24E" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-qibla" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="12.4" fill="none" stroke="#2FA8A3" stroke-width="2.2"/>
+      <path d="M16 6.5l2.4 5.6 5.6 2.4-5.6 2.4L16 22.5l-2.4-5.6L8 14.5l5.6-2.4z" fill="#D2A24E"/>
+    </symbol>
+    <symbol id="i-beads" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="9.6" fill="none" stroke="#2FA8A3" stroke-width="2.2"
+              stroke-dasharray="1.6 5" stroke-linecap="round"/>
+      <circle cx="16" cy="6.4" r="3" fill="#D2A24E"/>
+    </symbol>
+    <symbol id="i-stats" viewBox="0 0 32 32">
+      <rect x="5" y="17" width="5.6" height="10" rx="1.6" fill="#2FA8A3"/>
+      <rect x="13.2" y="10" width="5.6" height="17" rx="1.6" fill="#D2A24E"/>
+      <rect x="21.4" y="14" width="5.6" height="13" rx="1.6" fill="#2FA8A3"/>
+    </symbol>
+    <symbol id="i-give" viewBox="0 0 32 32">
+      <path d="M16 27L6.6 17.6a5.9 5.9 0 019.4-6.7 5.9 5.9 0 019.4 6.7z"
+            fill="none" stroke="#2FA8A3" stroke-width="2.4" stroke-linejoin="round"/>
+      <circle cx="16" cy="17" r="3" fill="#D2A24E"/>
+    </symbol>
+
+    <!-- prayer marks: the sun's position told as tile geometry, not weather icons -->
+    <symbol id="p-dawn" viewBox="0 0 32 32">
+      <path d="M4 22h24" stroke="#2FA8A3" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M9 22a7 7 0 0114 0z" fill="#D2A24E"/>
+      <path d="M16 6v3M6.5 10l2 2M25.5 10l-2 2" stroke="#2FA8A3" stroke-width="2.2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="p-noon" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="6.4" fill="#D2A24E"/>
+      <path d="M16 3v3.4M16 25.6V29M3 16h3.4M25.6 16H29M7 7l2.4 2.4M22.6 22.6L25 25M25 7l-2.4 2.4M9.4 22.6L7 25"
+            stroke="#2FA8A3" stroke-width="2.2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="p-after" viewBox="0 0 32 32">
+      <circle cx="16" cy="18" r="6" fill="#D2A24E"/>
+      <path d="M16 6.5v2.6M6.4 10.4l1.9 1.9M25.6 10.4l-1.9 1.9M3.6 20H6M26 20h2.4"
+            stroke="#2FA8A3" stroke-width="2.2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="p-dusk" viewBox="0 0 32 32">
+      <path d="M4 22h24" stroke="#2FA8A3" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M9 22a7 7 0 0114 0z" fill="#D2A24E"/>
+      <path d="M16 12.5v-3M8 16l-2-2M24 16l2-2" stroke="#2FA8A3" stroke-width="2.2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="p-night" viewBox="0 0 32 32">
+      <path d="M22.5 19.6A9.4 9.4 0 0111.4 8.2a9.6 9.6 0 1011.1 11.4z" fill="#D2A24E"/>
+      <path d="M23.4 7.2l1.1 2.6 2.6 1.1-2.6 1.1-1.1 2.6-1.1-2.6-2.6-1.1 2.6-1.1z" fill="#2FA8A3"/>
+    </symbol>
+  </defs></svg>
+
+  <div class="iwan"></div>
+  <div class="vign"></div>
+
+  <div class="status">
+    9:41
+    <span class="r">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+      <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".55"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 000-3" fill="currentColor" opacity=".55"/></svg>
+    </span>
+  </div>
+
+  <div class="head">
+    <button type="button" aria-label="Menyu">
+      <svg width="20" height="14" viewBox="0 0 20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 1h18M1 7h18M1 13h11"/></svg>
+    </button>
+    <span class="title">Mizan</span>
+    <span class="sp"></span>
+    <button type="button" aria-label="Qidirish">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.6" cy="8.6" r="6.4"/><path d="M13.4 13.4L18 18"/></svg>
+    </button>
+  </div>
+
+  <div class="hero">
+    <div class="kicker">Keyingi namoz</div>
+    <div class="clock">
+      <b>18</b><span class="sep"><i></i><i></i></span><b>36</b>
+    </div>
+    <div class="name">Shom</div>
+    <div class="meta"><span>53 daqiqa qoldi</span><em></em><span>Toshkent</span></div>
+  </div>
+
+  <div class="quick">
+    <a href="#"><span class="g"><svg width="26" height="26"><use href="#i-alarm"/></svg></span><span>Uyg'otgich</span></a>
+    <a href="#"><span class="g"><svg width="26" height="26"><use href="#i-focus"/></svg></span><span>Fokus</span></a>
+    <a href="#"><span class="g"><svg width="26" height="26"><use href="#i-qibla"/></svg></span><span>Qibla</span></a>
+    <a href="#"><span class="g"><svg width="26" height="26"><use href="#i-beads"/></svg></span><span>Tasbeh</span></a>
+    <a href="#"><span class="g"><svg width="26" height="26"><use href="#i-stats"/></svg></span><span>Statistika</span></a>
+    <a href="#"><span class="g"><svg width="26" height="26"><use href="#i-give"/></svg></span><span>Ehson</span></a>
+  </div>
+
+  <div class="sec"><h2>Namoz vaqtlari</h2><a href="#">Barchasi</a></div>
+
+  <div class="times">
+    <div class="t"><svg width="26" height="26"><use href="#p-dawn"/></svg><span class="n">Bomdod</span><span class="v">05:36</span></div>
+    <div class="t"><svg width="26" height="26"><use href="#p-noon"/></svg><span class="n">Peshin</span><span class="v">12:25</span></div>
+    <div class="t"><svg width="26" height="26"><use href="#p-after"/></svg><span class="n">Asr</span><span class="v">16:32</span></div>
+    <div class="t on"><svg width="26" height="26"><use href="#p-dusk"/></svg><span class="n">Shom</span><span class="v">18:36</span></div>
+    <div class="t"><svg width="26" height="26"><use href="#p-night"/></svg><span class="n">Xufton</span><span class="v">20:02</span></div>
+  </div>
+
+  <a class="wide" href="#">
+    <span class="badge"><svg width="26" height="26"><use href="#i-alarm"/></svg></span>
+    <span class="wl">
+      <span class="wk">Ertaga</span>
+      <span class="wv">Bomdod 05:34</span>
+      <span class="ws">Uyg'otgich yoqilgan</span>
+    </span>
+  </a>
+
+  <nav>
+    <a class="on" href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.3 3.3a1 1 0 011.4 0l8 7.4a1 1 0 01.3.8V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1v-8.5a1 1 0 01.3-.8z"/></svg>
+      <span>Bosh</span>
+    </a>
+    <a href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.3V12l3.3 2" stroke-linecap="round"/></svg>
+      <span>Vaqtlar</span>
+    </a>
+    <a href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.6V11"/><path d="M12 11C12 7.2 9.3 5.2 5.3 5.2 5.3 9 8 11 12 11z"/><path d="M12 11c0-3.1 2.3-4.8 5.6-4.8C17.6 9.3 15.3 11 12 11z"/></svg>
+      <span>Bog'</span>
+    </a>
+    <a href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.4L4.7 13.2a4.5 4.5 0 117.3-5.1 4.5 4.5 0 117.3 5.1z"/></svg>
+      <span>Ehson</span>
+    </a>
+  </nav>
+
+</div>
+</body>
+</html>

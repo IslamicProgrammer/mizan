@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Fokus</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* ADAPTED: the reference has no interrupt screen (design-system.md §5).
+     Assembled from its own parts — the full-bleed glow, the dome image, the measured
+     numeral treatment, the cream pill, the surface card. Nothing new invented. */
+
+  .glow{height:560px;background:radial-gradient(120% 62% at 50% 30%,
+    var(--glow-peak) 0%, #EAC079 24%, #F2D399 46%, var(--glow-edge) 68%, rgba(248,242,234,0) 92%)}
+
+  /* same dome as home, so the interrupt reads as the same app */
+  .dome{position:absolute;left:50%;transform:translateX(-50%);top:214px;
+        width:300px;opacity:.30;pointer-events:none}
+
+  .body{position:relative;flex:1;padding:4px var(--gutter) 0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+
+  .badge{
+    display:flex;align-items:center;gap:8px;padding:8px 15px 8px 9px;border-radius:999px;
+    background:rgba(255,253,248,.66);
+  }
+  .badge img{width:20px;height:20px}
+  .badge b{font-size:12px;font-weight:700;color:var(--ink-warm);letter-spacing:.7px}
+
+  /* The blocked app's icon.
+     At runtime this is the real one: packageManager.getApplicationIcon(pkg).
+     In the mockup it is a neutral rounded tile — redrawing another company's
+     mark into our own UI is a trademark problem, and a brand-coloured gradient
+     is the same problem with the edges filed off. Keep this warm and neutral. */
+  .app{margin-top:26px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .app .tile{
+    position:relative;width:64px;height:64px;border-radius:15px;
+    background:linear-gradient(148deg,#CFC2AE 0%,#B3A188 55%,#948066 100%);
+    box-shadow:0 2px 4px rgba(90,60,30,.16), 0 10px 24px rgba(90,60,30,.22);
+  }
+  /* the specular lip real app icons have */
+  .app .tile::after{
+    content:"";position:absolute;inset:0;border-radius:15px;
+    background:linear-gradient(180deg,rgba(255,255,255,.26),transparent 46%);
+  }
+  .app .nm{font-size:25px;font-weight:800;letter-spacing:-.5px;color:var(--ink)}
+  .app .sub{font-size:14px;font-weight:500;color:var(--ink-soft);margin-top:-6px}
+
+  .left{margin-top:24px;display:flex;align-items:flex-start;gap:4px}
+  .left b{
+    font-size:78px;font-weight:900;line-height:1;letter-spacing:-2.5px;
+    color:var(--ink-warm);font-variant-numeric:tabular-nums;
+  }
+  .left .sep{align-self:center;margin:0 12px;display:flex;flex-direction:column;gap:12px}
+  .left .sep i{display:block;width:9px;height:9px;border-radius:50%;background:var(--ink-warm)}
+  .unit{margin-top:6px;font-size:13.5px;font-weight:600;color:var(--ink-soft)}
+
+  .window{width:100%;margin-top:22px}
+  .window .track{height:5px;border-radius:3px;background:rgba(80,50,15,.14);overflow:hidden}
+  .window .track i{display:block;width:38%;height:100%;border-radius:3px;background:var(--ink-warm)}
+  .window .ends{display:flex;justify-content:space-between;margin-top:8px;
+                font-size:12px;font-weight:600;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+
+  .why{
+    width:100%;margin-top:20px;padding:14px 16px;border-radius:20px;
+    background:var(--surface);box-shadow:var(--lift);
+    display:flex;gap:12px;align-items:flex-start;
+  }
+  .why img{width:28px;height:28px;flex:none}
+  .why p{font-size:13px;line-height:1.55;font-weight:500;color:var(--ink-soft)}
+  .why p b{color:var(--ink);font-weight:700}
+
+  .acts{position:relative;padding:18px var(--gutter) 28px;display:flex;flex-direction:column;gap:10px;flex:none}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow"></div>
+  <img class="dome" src="assets/mosque.svg" alt="">
+  <div class="bleed"></div>
+
+  <div class="status">
+    9:41
+    <span class="r">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+      <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+    </span>
+  </div>
+
+  <div class="body">
+    <span class="badge">
+      <img src="assets/icons/lock.png" alt="">
+      <b>ASR VAQTI</b>
+    </span>
+
+    <div class="app">
+      <span class="tile"></span>
+      <span class="nm">Instagram</span>
+      <span class="sub">Asr tugaguncha yopiq</span>
+    </div>
+
+    <div class="left">
+      <b>11</b><span class="sep"><i></i><i></i></span><b>42</b>
+    </div>
+    <div class="unit">daqiqa qoldi</div>
+
+    <div class="window">
+      <div class="track"><i></i></div>
+      <div class="ends"><span>16:32</span><span>18:36</span></div>
+    </div>
+
+    <div class="why">
+      <img src="assets/icons/bell.png" alt="">
+      <p>Fokus rejimini <b>siz</b> yoqqansiz. Istalgan vaqtda to'xtatasiz — bu qulf emas, eslatma.</p>
+    </div>
+  </div>
+
+  <div class="acts">
+    <a class="act" href="#">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Asrni o'qidim
+    </a>
+    <a class="act ghost" href="#">5 daqiqa kutish</a>
+    <a class="act quiet" href="#">bugunga fokusni o'chirish</a>
+  </div>
+
+  <div class="grain"></div>
+</div>
+</body>
+</html>

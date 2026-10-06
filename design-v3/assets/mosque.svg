@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 210" fill="#FFFDF8">
+  <!-- Mosque silhouette. Flat, single fill, complete outline — readable at a glance
+       over the hero glow. A photograph at low opacity turns to mush on this ground. -->
+
+  <!-- left minaret: shaft, balcony, onion cap, finial -->
+  <path d="M41 210V88h14v122z"/>
+  <path d="M36 88h24v-9H36z"/>
+  <path d="M37 79c-3-9-5-15 4-21 3-3 5-2 7-5 2 3 4 2 7 5 9 6 7 12 4 21z"/>
+  <path d="M46.5 53h3V41h-3z"/>
+  <circle cx="48" cy="38" r="4"/>
+
+  <!-- right minaret -->
+  <path d="M295 210V88h14v122z"/>
+  <path d="M290 88h24v-9h-24z"/>
+  <path d="M291 79c-3-9-5-15 4-21 3-3 5-2 7-5 2 3 4 2 7 5 9 6 7 12 4 21z"/>
+  <path d="M300.5 53h3V41h-3z"/>
+  <circle cx="302" cy="38" r="4"/>
+
+  <!-- flanking onion domes -->
+  <path d="M72 140c-5-14-10-28 6-44 8-8 19-12 27-18 8 6 19 10 27 18 16 16 11 30 6 44z"/>
+  <path d="M212 140c-5-14-10-28 6-44 8-8 19-12 27-18 8 6 19 10 27 18 16 16 11 30 6 44z"/>
+
+  <!-- central onion dome + finial -->
+  <path d="M121 126c-7-22-17-42 7-66 14-14 34-26 47-38 13 12 33 24 47 38 24 24 14 44 7 66v14h-108z"/>
+  <path d="M173 22h4V8h-4z"/>
+  <circle cx="175" cy="7" r="5"/>
+
+  <!-- arcade base with three pointed arches cut out -->
+  <path fill-rule="evenodd" d="M66 210v-72h218v72zM89 210v-32c0-14 9-24 21-24s21 10 21 24v32zM154 210v-36c0-14 9-24 21-24s21 10 21 24v36zM219 210v-32c0-14 9-24 21-24s21 10 21 24v32z"/>
+</svg>

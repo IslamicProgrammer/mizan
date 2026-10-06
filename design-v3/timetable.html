@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Namoz vaqtlari</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  .daynav{position:relative;margin:0 var(--gutter) 14px;display:flex;align-items:center;gap:10px;flex:none}
+  .daynav button{width:34px;height:34px;border:0;border-radius:12px;background:var(--surface);
+                 box-shadow:var(--lift);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
+  .daynav .d{flex:1;padding:8px;border-radius:14px;background:var(--surface);box-shadow:var(--lift);
+             display:flex;flex-direction:column;align-items:center;gap:1px}
+  .daynav .d b{font-size:14px;font-weight:700}
+  .daynav .d s{font-size:11px;font-weight:500;color:var(--ink-soft);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="screen"><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+  <div class="bar"><h1>Namoz vaqtlari</h1><a class="ic" href="qibla.html" aria-label="Qibla"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9.5"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z"/></svg></a><a class="ic" href="month.html" aria-label="Oy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></a></div>
+  <div class="daynav">
+    <button type="button" aria-label="Kecha"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19 8 12l7-7"/></svg></button>
+    <span class="d"><b>Bugun · 29-sentabr</b><s>7 Rabi' al-Thani 1448</s></span>
+    <button type="button" aria-label="Ertaga"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+  <div class="list">
+    <a class="li " href="prayer-sheet.html"><img src="assets/icons/fajr.png" alt=""><span class="l"><b>Bomdod</b><s>05:36 da o'qildi</s></span><span class="v">05:36</span></a>
+    <div class="li dim"><img src="assets/icons/dhuhr.png" alt=""><span class="l"><b>Quyosh chiqishi</b></span><span class="v">06:58</span></div>
+    <a class="li " href="prayer-sheet.html"><img src="assets/icons/dhuhr.png" alt=""><span class="l"><b>Peshin</b><s>12:40 da o'qildi</s></span><span class="v">12:25</span></a>
+    <a class="li on" href="prayer-sheet.html"><img src="assets/icons/asr.png" alt=""><span class="l"><b>Asr</b><s>hozir · 1s 12d qoldi</s></span><span class="v">16:34</span></a>
+    <a class="li " href="prayer-sheet.html"><img src="assets/icons/maghrib.png" alt=""><span class="l"><b>Shom</b></span><span class="v">18:36</span></a>
+    <a class="li " href="prayer-sheet.html"><img src="assets/icons/isha.png" alt=""><span class="l"><b>Xufton</b></span><span class="v">20:02</span></a>
+  </div>
+  <div class="lbl">Qazo</div>
+  <div class="list">
+    <a class="li " href="qaza.html"><img src="assets/icons/calendar.png" alt=""><span class="l"><b>Qazo namozlar</b><s>Bittadan qaytarib borasiz</s></span><span class="r">14</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></a>
+  </div>
+
+  <nav>
+    <a href="home.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11 12 4.2 20 11"/><path d="M6.6 9.8V20h10.8V9.8"/></svg><span>Bosh</span></a>
+    <a class="on" href="timetable.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.3V12l3.3 2" stroke-linecap="round"/></svg><span>Vaqtlar</span></a>
+    <a href="garden.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.6V11"/><path d="M12 11C12 7.2 9.3 5.2 5.3 5.2 5.3 9 8 11 12 11z"/><path d="M12 11c0-3.1 2.3-4.8 5.6-4.8C17.6 9.3 15.3 11 12 11z"/></svg><span>Bog'</span></a>
+    <a href="charity-promise.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20.4 4.7 13.2a4.5 4.5 0 1 1 7.3-5.1 4.5 4.5 0 1 1 7.3 5.1z"/></svg><span>Ehson</span></a>
+  </nav>
+  <div class="grain"></div>
+</div>
+</body>
+</html>

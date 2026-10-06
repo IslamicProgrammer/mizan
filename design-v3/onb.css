@@ -1,0 +1,62 @@
+/* Shared onboarding chrome. Values from design-system.md; nothing new invented. */
+
+.prog{position:relative;display:flex;align-items:center;gap:14px;padding:0 var(--gutter);height:40px;flex:none}
+.prog .track{flex:1;height:4px;border-radius:2px;background:rgba(80,50,15,.13);overflow:hidden}
+.prog .track i{display:block;height:100%;border-radius:2px;background:var(--ink-warm)}
+.prog .n{font-size:12px;font-weight:600;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.prog a{width:26px;height:26px;margin-left:-4px;display:flex;align-items:center;color:var(--ink);text-decoration:none}
+
+.ask{position:relative;padding:0 var(--gutter);margin-top:26px;flex:none}
+.ask h1{font-size:27px;font-weight:800;line-height:1.24;letter-spacing:-.6px}
+.ask p{margin-top:10px;font-size:14px;line-height:1.55;color:var(--ink-soft);max-width:31ch}
+
+.opts{position:relative;padding:0 var(--gutter);margin-top:22px;display:flex;flex-direction:column;gap:10px}
+
+.opt{
+  display:flex;align-items:center;gap:14px;width:100%;text-align:left;cursor:pointer;
+  border:0;padding:13px 16px;border-radius:20px;
+  background:var(--surface);box-shadow:var(--lift);font-family:'Onest',sans-serif;
+}
+.opt img{width:34px;height:34px;flex:none;display:block}
+.opt .l{flex:1;display:flex;flex-direction:column;gap:2px}
+.opt .l b{font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.1px}
+.opt .l s{font-size:12px;font-weight:500;color:var(--ink-soft);text-decoration:none}
+.opt .k{width:24px;height:24px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 2px rgba(80,50,15,.16)}
+/* ADAPTED: no selected state in the reference. Measured accent + shadow-only elevation. */
+.opt.on{box-shadow:0 2px 4px rgba(230,106,67,.14), 0 10px 24px rgba(230,106,67,.22)}
+.opt.on .k{background:var(--accent);box-shadow:none;display:flex;align-items:center;justify-content:center}
+
+/* two-up choice, for gender and similar */
+.pair{position:relative;padding:0 var(--gutter);margin-top:24px;display:flex;gap:12px;flex:none}
+.pair button{
+  flex:1;border:0;cursor:pointer;font-family:'Onest',sans-serif;
+  padding:24px 12px;border-radius:24px;background:var(--surface);box-shadow:var(--lift);
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+}
+.pair button.on{box-shadow:0 2px 4px rgba(230,106,67,.14), 0 10px 24px rgba(230,106,67,.22)}
+.pair img{width:46px;height:46px}
+.pair b{font-size:16px;font-weight:700;color:var(--ink)}
+
+/* an explanatory note that is not an option */
+.note{
+  position:relative;margin:18px var(--gutter) 0;padding:15px 17px;border-radius:20px;
+  background:var(--surface);box-shadow:var(--lift);display:flex;gap:12px;align-items:flex-start;flex:none;
+}
+.note img{width:26px;height:26px;flex:none}
+.note p{font-size:12.5px;line-height:1.55;font-weight:500;color:var(--ink-soft)}
+.note p b{color:var(--ink);font-weight:700}
+
+.foot{position:relative;margin-top:auto;padding:0 var(--gutter) 30px;flex:none}
+.foot .hint{text-align:center;font-size:12.5px;font-weight:500;color:var(--ink-soft);padding-bottom:14px}
+
+/* a permission screen: one big mark, a claim, three reassurances */
+.perm{position:relative;flex:1;padding:0 var(--gutter);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.perm .big{width:120px;height:120px;border-radius:40px;background:linear-gradient(155deg,#FBE3B4,#EFB55C);
+           display:flex;align-items:center;justify-content:center;box-shadow:0 14px 32px rgba(197,138,46,.28)}
+.perm .big img{width:60px;height:60px}
+.perm h1{margin-top:28px;font-size:26px;font-weight:800;line-height:1.26;text-align:center;letter-spacing:-.5px}
+.perm p{margin-top:11px;font-size:14.5px;line-height:1.6;color:var(--ink-soft);text-align:center;max-width:30ch}
+.perm ul{margin-top:24px;width:100%;display:flex;flex-direction:column;gap:9px;list-style:none}
+.perm li{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:18px;
+         background:var(--surface);box-shadow:var(--lift);font-size:13px;font-weight:600;color:var(--ink)}
+.perm li svg{flex:none;color:#5F7D59}

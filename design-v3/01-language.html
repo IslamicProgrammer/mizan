@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Mizan — Til</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="onb.css">
+<style>
+  .brand{position:relative;flex:none;padding:34px var(--gutter) 0;display:flex;
+         flex-direction:column;align-items:center;gap:14px}
+  .brand .mk{width:84px;height:84px;display:block;box-shadow:0 16px 34px rgba(80,50,15,.26)}
+  .brand .wd{font-size:31px;font-weight:800;letter-spacing:-1px;color:var(--ink-warm)}
+  .brand .tg{font-size:13.5px;font-weight:500;color:var(--ink-soft)}
+  .langs{position:relative;padding:0 var(--gutter);margin-top:34px;display:flex;flex-direction:column;gap:10px}
+  .lang{display:flex;align-items:center;gap:14px;width:100%;border:0;cursor:pointer;text-align:left;
+        padding:16px 18px;border-radius:20px;background:var(--surface);box-shadow:var(--lift);
+        font-family:'Onest',sans-serif}
+  .lang.on{box-shadow:0 2px 4px rgba(230,106,67,.14),0 10px 24px rgba(230,106,67,.22)}
+  .lang .l{flex:1;display:flex;flex-direction:column;gap:2px}
+  .lang b{font-size:17px;font-weight:700;color:var(--ink)}
+  .lang s{font-size:12px;font-weight:500;color:var(--ink-soft);text-decoration:none}
+  .lang .k{width:24px;height:24px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 2px rgba(80,50,15,.16)}
+  .lang.on .k{background:var(--accent);box-shadow:none;display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="glow soft"></div><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+
+  <div class="brand">
+    <img class="mk" src="assets/img/mizan-mark.svg" alt="" style="border-radius:26px">
+    <span class="wd">Mizan</span>
+    <span class="tg">Namoz · Fokus · Ehson</span>
+  </div>
+
+  <div class="langs">
+    <button class="lang on" type="button">
+      <span class="l"><b>O'zbekcha</b><s>Lotin alifbosi</s></span>
+      <span class="k"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+    </button>
+    <button class="lang" type="button"><span class="l"><b>Русский</b><s>Russian</s></span><span class="k"></span></button>
+    <button class="lang" type="button"><span class="l"><b>English</b><s>English</s></span><span class="k"></span></button>
+  </div>
+
+  <div class="foot"><a class="act" href="02-welcome.html">Davom etish</a></div>
+  <div class="grain"></div>
+</div>
+</body>
+</html>

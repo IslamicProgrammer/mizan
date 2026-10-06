@@ -1,0 +1,15 @@
+<svg viewBox="0 0 1024 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="mizanTitle">
+  <title id="mizanTitle">Mizan</title>
+
+  <rect x="0" y="0" width="1024" height="512" fill="#F8F2EA"/>
+
+  <g id="icon">
+    <rect x="32" y="32" width="448" height="448" rx="104" fill="#50320F"/>
+    <path d="M152 202 A104 104 0 1 0 360 202 A104 104 0 1 0 152 202 Z M214 202 A42 42 0 1 0 298 202 A42 42 0 1 0 214 202 Z" fill="#E8B762" fill-rule="evenodd"/>
+    <rect x="298" y="190" width="62" height="224" fill="#E8B762"/>
+  </g>
+
+  <g id="wordmark">
+    <text x="560" y="307" font-family="Helvetica, Arial, sans-serif" font-size="142" font-weight="800" letter-spacing="-3" fill="#50320F">Mizan</text>
+  </g>
+</svg>

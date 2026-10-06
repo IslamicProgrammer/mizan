@@ -1,0 +1,21 @@
+# secrets — never commit
+.secrets/
+*.key
+.env
+.env.*
+!.env.example
+google-services.json
+*.keystore
+*.jks
+
+# node / expo
+node_modules/
+.expo/
+dist/
+*.log
+
+# sdd scratch
+.superpowers/
+
+# os
+.DS_Store

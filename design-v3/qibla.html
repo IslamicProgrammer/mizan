@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8"><title>Mizan — Qibla</title>
+<link rel="icon" href="assets/img/mizan-mark.svg">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="app.css">
+<style>
+  .dial{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:0 var(--gutter)}
+  .ring{position:relative;width:300px;height:300px}
+  .ring svg{position:absolute;inset:0}
+  .kaaba{position:absolute;left:50%;top:6px;transform:translateX(-50%);width:44px;height:44px;
+         border-radius:15px;background:var(--surface);box-shadow:var(--lift);
+         display:flex;align-items:center;justify-content:center}
+  .kaaba img{width:26px;height:26px}
+  .dirs span{position:absolute;font-size:13px;font-weight:700;color:var(--ink-soft)}
+  .dirs .n{left:50%;top:60px;transform:translateX(-50%);color:var(--ink);font-weight:800}
+  .dirs .e{right:26px;top:50%;transform:translateY(-50%)}
+  .dirs .s{left:50%;bottom:26px;transform:translateX(-50%)}
+  .dirs .w{left:26px;top:50%;transform:translateY(-50%)}
+  .deg{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .deg b{font-size:52px;font-weight:900;line-height:1.05;letter-spacing:-1.8px;color:var(--ink-warm);font-variant-numeric:tabular-nums}
+  .deg s{font-size:13.5px;font-weight:600;color:var(--ink-soft);text-decoration:none}
+  .ok{display:flex;align-items:center;gap:10px;padding:13px 20px;border-radius:999px;background:#EFF3EC}
+  .ok b{font-size:14px;font-weight:700;color:#4A5D46}
+  .tip{position:relative;margin:0 var(--gutter) 26px;padding:14px 16px;border-radius:19px;
+       background:var(--surface);box-shadow:var(--lift);display:flex;gap:11px;align-items:flex-start;flex:none;
+       font-size:12.5px;line-height:1.55;font-weight:500;color:var(--ink-soft)}
+  .tip svg{flex:none;margin-top:1px}
+  .tip p{flex:1}
+</style>
+</head>
+<body>
+<div class="screen"><div class="bleed"></div>
+  <div class="status">9:41<span class="r">
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7.5" width="3" height="3.5" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+    <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x=".5" y=".5" width="20" height="10" rx="3" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="17" height="7" rx="1.8" fill="currentColor"/><path d="M22 4v3a2 2 0 0 0 0-3" fill="currentColor" opacity=".5"/></svg>
+  </span></div>
+
+  <div class="bar"><a class="ic" href="timetable.html" aria-label="Orqaga"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19 8 12l7-7"/></svg></a><h1>Qibla</h1></div>
+
+  <div class="dial">
+    <div class="ring">
+      <svg width="300" height="300" viewBox="0 0 300 300" fill="none">
+        <circle cx="150" cy="150" r="140" fill="#F6EFE6"/>
+        <circle cx="150" cy="150" r="140" stroke="#EFE0C6" stroke-width="2"/>
+        <circle cx="150" cy="150" r="112" stroke="#EBD2B2" stroke-width="1.5" stroke-dasharray="3 8"/>
+        <circle cx="262" cy="150" r="3.5" fill="#D6C3A6"/><circle cx="150" cy="262" r="3.5" fill="#D6C3A6"/>
+        <circle cx="38" cy="150" r="3.5" fill="#D6C3A6"/>
+        <path d="M150 62 L164 172 L150 156 L136 172 Z" fill="#E66A43"/>
+        <path d="M150 238 L136 128 L150 144 L164 128 Z" fill="#E4D6C0"/>
+        <circle cx="150" cy="150" r="12" fill="#C0561F"/><circle cx="150" cy="150" r="5" fill="#FFFCF6"/>
+      </svg>
+      <span class="kaaba"><img src="assets/icons/kaaba.png" alt=""></span>
+      <span class="dirs"><span class="n">SH</span><span class="e">SH-Q</span><span class="s">J</span><span class="w">G'</span></span>
+    </div>
+
+    <div class="deg"><b>255°</b><s>Toshkentdan Ka'baga yo'nalish</s></div>
+
+    <div class="ok">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4E6A49" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <b>Telefon to'g'ri yo'nalishda</b>
+    </div>
+  </div>
+
+  <div class="tip">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A08B70" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 16v-4.5M12 8h.01"/></svg>
+    <p>Telefonni tekis ushlang va metall buyumlardan uzoqroq turing. Kompas sozlanmasa, telefonni sakkiz shaklida aylantiring.</p>
+  </div>
+  <div class="grain"></div>
+</div>
+</body>
+</html>

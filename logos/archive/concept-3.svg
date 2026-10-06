@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <rect x="0" y="0" width="1024" height="512" fill="#F8F2EA"/>
+
+  <g id="icon">
+    <!-- tile -->
+    <rect x="0" y="0" width="512" height="512" rx="116" fill="#50320F"/>
+
+    <!-- west crescent: outer arc R179.2 about the centre, inner arc R300.8 about (455.6,256), horns sliced on the radius -->
+    <path d="M177.4 94.9 A179.2 179.2 0 0 0 177.4 417.1 L188.5 394.4 A300.8 300.8 0 0 1 188.5 117.6 Z" fill="#E8B762"/>
+
+    <!-- east crescent: exact mirror of the west crescent about x=256 -->
+    <path d="M334.6 94.9 A179.2 179.2 0 0 1 334.6 417.1 L323.5 394.4 A300.8 300.8 0 0 0 323.5 117.6 Z" fill="#E8B762"/>
+
+    <!-- shared centre: the point of equilibrium -->
+    <circle cx="256" cy="256" r="38" fill="#E66A43"/>
+  </g>
+
+  <g id="wordmark">
+    <text x="580" y="308" font-family="Helvetica, Arial, sans-serif" font-size="140" font-weight="900" letter-spacing="-3" fill="#50320F">Mizan</text>
+  </g>
+</svg>

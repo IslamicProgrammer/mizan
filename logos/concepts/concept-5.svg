@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512">
+  <!-- Mizan — the Arabic meem (م) drawn to the real letter's proportions.
+
+       What the three failed attempts got wrong: they made the loop dominant and the
+       tail stubby, which turns meem into a Latin P or q. In the actual letter the
+       head is SMALL and the tail is LONG — roughly 1 : 2.5 — and the tail hangs from
+       the head's LEFT and descends well below it. That proportion is the letter's
+       identity; geometric reduction destroys it. -->
+
+  <rect width="1024" height="512" fill="#F8F2EA"/>
+
+  <g id="icon">
+    <rect width="512" height="512" rx="112" fill="#50320F"/>
+
+    <!-- head: a small closed loop, upper right -->
+    <path fill="#E8B762" fill-rule="evenodd"
+          d="M330 96a74 74 0 1 1 0 148 74 74 0 0 1 0-148z
+             M330 140a30 30 0 1 0 0 60 30 30 0 0 0 0-60z"/>
+
+    <!-- tail: hangs from the head's left, descends past the baseline,
+         easing left the way the written stroke does -->
+    <path d="M272 214 C 250 276, 226 318, 220 374 L 220 404"
+          fill="none" stroke="#E8B762" stroke-width="44"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g id="wordmark">
+    <text x="576" y="300" font-family="Helvetica, Arial, sans-serif"
+          font-size="146" font-weight="800" letter-spacing="-5" fill="#50320F">Mizan</text>
+  </g>
+</svg>

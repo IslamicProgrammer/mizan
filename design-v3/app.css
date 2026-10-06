@@ -1,0 +1,61 @@
+/* Shared in-app patterns. Values from design-system.md. */
+
+/* screen title bar */
+.bar{position:relative;height:46px;flex:none;display:flex;align-items:center;gap:12px;padding:0 var(--gutter)}
+.bar h1{flex:1;font-size:21px;font-weight:800;letter-spacing:-.3px}
+.bar .ic{width:38px;height:38px;border-radius:13px;background:var(--surface);box-shadow:var(--lift);
+         display:flex;align-items:center;justify-content:center;color:var(--ink);
+         text-decoration:none;border:0;cursor:pointer;flex:none}
+
+/* grouped list — one card, hairlines inside, never between cards */
+.list{position:relative;margin:0 var(--gutter);border-radius:22px;background:var(--surface);
+      box-shadow:var(--lift);overflow:hidden;flex:none}
+.li{display:flex;align-items:center;gap:13px;padding:13px 16px;text-decoration:none;color:var(--ink)}
+.li + .li{border-top:1px solid rgba(80,50,15,.07)}
+.li img{width:28px;height:28px;flex:none}
+.li .l{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.li .l b{font-size:15px;font-weight:700}
+.li .l s{font-size:12px;font-weight:500;color:var(--ink-soft);text-decoration:none}
+.li .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.li .r{font-size:13px;font-weight:600;color:var(--ink-soft)}
+.li .chev{color:#C4B29A;flex:none}
+.li.on{background:linear-gradient(150deg,#FCEBC7,#F3C87E)}
+.li.on .l b{color:#40290C}
+.li.on .v{color:#40290C}
+.li.dim .l b{color:var(--ink-soft);font-weight:600}
+.li.dim .v{color:var(--ink-soft);font-weight:600;font-size:15px}
+
+/* section label above a list */
+.lbl{position:relative;margin:20px var(--gutter) 9px;font-size:12px;font-weight:700;
+     letter-spacing:.8px;text-transform:uppercase;color:#A08B70;flex:none}
+
+/* segmented control */
+.seg{position:relative;margin:0 var(--gutter);display:flex;gap:4px;padding:4px;border-radius:15px;
+     background:rgba(80,50,15,.07);flex:none}
+.seg button{flex:1;padding:9px;border:0;border-radius:11px;background:none;cursor:pointer;
+            font-family:'Onest',sans-serif;font-size:13px;font-weight:600;color:var(--ink-soft)}
+.seg button.on{background:var(--page);color:var(--ink);font-weight:800;box-shadow:var(--lift)}
+
+/* toggle */
+.tg{width:46px;height:27px;border-radius:999px;background:rgba(80,50,15,.16);flex:none;
+    display:flex;align-items:center;padding:3px;box-sizing:border-box}
+.tg i{width:21px;height:21px;border-radius:50%;background:#FFFCF6;display:block}
+.tg.on{background:var(--accent);justify-content:flex-end}
+
+/* stat tiles */
+.tiles{position:relative;margin:0 var(--gutter);display:flex;gap:10px;flex:none}
+.tile{flex:1;padding:15px;border-radius:20px;background:var(--surface);box-shadow:var(--lift);
+      display:flex;flex-direction:column;gap:4px}
+.tile b{font-size:25px;font-weight:800;letter-spacing:-.6px;font-variant-numeric:tabular-nums}
+.tile s{font-size:11.5px;font-weight:600;color:var(--ink-soft);text-decoration:none}
+
+/* a bar row, for per-prayer breakdowns */
+.bars{position:relative;margin:0 var(--gutter);padding:18px;border-radius:22px;
+      background:var(--surface);box-shadow:var(--lift);display:flex;flex-direction:column;gap:13px;flex:none}
+.br{display:flex;align-items:center;gap:12px}
+.br .k{width:52px;font-size:13px;font-weight:700}
+.br .t{flex:1;height:11px;border-radius:999px;background:rgba(80,50,15,.09);overflow:hidden}
+.br .t i{display:block;height:100%;border-radius:999px;background:#7E9B78}
+.br .t i.warn{background:var(--accent)}
+.br .p{width:36px;text-align:right;font-size:12.5px;font-weight:700;color:#5F7D59;font-variant-numeric:tabular-nums}
+.br .p.warn{color:var(--accent)}
