@@ -1476,3 +1476,150 @@ subscriptions, and the production rollout once the 14 days are complete.
 - **Placeholders:** none — every code step carries the code.
 - **Type consistency:** `DayRecord`, `ymd`, `Settings`, `Madhhab`, `timesFor`, `FIVE`, `PRAYER_NAMES` all match `mobile/src/data/`. `mergeHistory` and `buildSchedule` signatures match their tests.
 - **Review Focus coverage:** #1 offline is pinned in Task 10's past-time test and Phase 3's open questions; #2 Doze is Task 11 Step 5; #3 reinstall is Tasks 7-8; #4 midnight is already tested in `rollOver`; **#5 Russian overflow has no test and no task — the single known gap.**
+
+---
+
+### Task 13: Stop promising what v1 does not ship
+
+Added during execution. The plan's self-review named Russian localisation as a
+gap and left it; a read of the actual screens shows the gap is worse than a
+missing translation — the app *offers* Russian and English and then ignores the
+choice. A tester who taps Русский on the very first screen gets an entirely
+Uzbek app. Two settings rows have the same problem in miniature: `Til` and
+`Maxfiylik siyosati` draw a chevron, which in this design system means "this
+opens something", and neither has an `onPress`.
+
+v1 ships Uzbek only. That is a defensible product decision — the market is
+Uzbekistan — but the UI has to say so rather than imply otherwise.
+
+**Files:**
+- Modify: `mobile/src/onboarding/content.ts` (add `soon` to `LANGUAGES`)
+- Modify: `mobile/src/onboarding/Steps.tsx:27-60` (`LanguageStep`)
+- Modify: `mobile/src/app/settings/index.tsx:71-72`
+- Test: `mobile/src/onboarding/__tests__/content.test.ts`
+
+**Interfaces:**
+- Consumes: `ENV` from `mobile/src/data/env.ts` (Task 2) — read `ENV.apiUrl` only
+  if the privacy policy is served from the API host; otherwise use the literal
+  below.
+- Produces: `LANGUAGES` entries gain an optional `soon?: true`.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// mobile/src/onboarding/__tests__/content.test.ts
+import { LANGUAGES } from '../content';
+
+describe('LANGUAGES', () => {
+  it('ships exactly one selectable language in v1', () => {
+    expect(LANGUAGES.filter((l) => !l.soon).map((l) => l.key)).toEqual(['uz']);
+  });
+
+  it('still lists the languages that are coming, so the plan is visible', () => {
+    expect(LANGUAGES.map((l) => l.key)).toEqual(['uz', 'ru', 'en']);
+  });
+});
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `cd mobile && npx jest src/onboarding/__tests__/content.test.ts`
+Expected: FAIL — `soon` does not exist on the `LANGUAGES` element type.
+
+- [ ] **Step 3: Mark the unshipped languages**
+
+```ts
+// mobile/src/onboarding/content.ts
+export const LANGUAGES: { key: string; title: string; sub: string; soon?: true }[] = [
+  { key: 'uz', title: "O'zbekcha", sub: 'Lotin alifbosi' },
+  { key: 'ru', title: 'Русский', sub: 'Tez kunda', soon: true },
+  { key: 'en', title: 'English', sub: 'Tez kunda', soon: true },
+];
+```
+
+- [ ] **Step 4: Make them unselectable in `LanguageStep`**
+
+In the `LANGUAGES.map` body, before the `Pressable`:
+
+```tsx
+const soon = l.soon === true;
+```
+
+then on the `Pressable`:
+
+```tsx
+disabled={soon}
+accessibilityState={{ selected: on, disabled: soon }}
+style={[s.lang, on && s.langOn, soon && s.langSoon]}
+```
+
+and guard the handler so a disabled press cannot write state:
+
+```tsx
+onPress={() => {
+  if (soon) return;
+  Haptics.selectionAsync();
+  onChange(l.key);
+}}
+```
+
+Add the style beside the existing `s.lang` rules:
+
+```ts
+langSoon: { opacity: 0.45 },
+```
+
+Do not render the `Tick` for a `soon` row.
+
+- [ ] **Step 5: Run the test to verify it passes**
+
+Run: `cd mobile && npx jest src/onboarding/__tests__/content.test.ts`
+Expected: PASS, 2 tests.
+
+- [ ] **Step 6: Fix the two dead chevrons in settings**
+
+`Til` does not open anything, because there is nothing to choose. Drop the
+chevron and leave it as a stated fact:
+
+```tsx
+<Row icon="book" title="Til" value="O'zbekcha" />
+```
+
+`Maxfiylik siyosati` must open the policy — Google Play requires a reachable
+privacy policy, and a row that draws a chevron and does nothing is the kind of
+thing a reviewer taps first. Import `openURL` from `expo-linking` and point it
+at the hosted policy:
+
+```tsx
+import * as Linking from 'expo-linking';
+
+const PRIVACY_URL = 'https://mizanapp.uz/maxfiylik';
+```
+
+```tsx
+<Row
+  icon="lock"
+  title="Maxfiylik siyosati"
+  chevron
+  onPress={() => Linking.openURL(PRIVACY_URL)}
+/>
+```
+
+`expo-linking` is already a dependency (`~57.0.11`); no install step is needed.
+
+`PRIVACY_URL` must be the same URL submitted in the Play Console listing in
+Task 12. If the domain is not yet live, leave this literal as written and note
+it in the task report; Task 12 verifies the two match.
+
+- [ ] **Step 7: Gate**
+
+Run: `cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke`
+Expected: all green. The smoke run matters here — it loads the onboarding route
+and would catch a `Pressable` whose style array broke.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add mobile/src/onboarding mobile/src/app/settings/index.tsx mobile/package.json mobile/package-lock.json
+git commit -m "fix(ui): only offer the language v1 actually ships, and wire the privacy policy row"
+```
