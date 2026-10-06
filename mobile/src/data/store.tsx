@@ -13,8 +13,17 @@
  * focus/, charity/ and settings/ under app/.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { AppState, View } from 'react-native';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { FIVE, type Madhhab, type PrayerId } from './prayer';
 
@@ -78,7 +87,10 @@ export type State = {
    * they turned it off. `to` is absent while a cycle is still open. This is
    * health data the user never asked us to send anywhere, so it stays on the
    * device and is never part of the synced profile — see `stateForSync`
-   * below.
+   * below. It lives in memory as part of `State` like everything else, but
+   * `StoreProvider` persists it to `expo-secure-store`, not to the
+   * `AsyncStorage` blob the rest of this object is written to — see the
+   * comment above that split for why.
    */
   cycles: { from: string; to?: string }[];
   /**
@@ -220,33 +232,74 @@ type Store = State & {
 
 const Ctx = createContext<Store | null>(null);
 const KEY = 'mizan.state.v1';
+// A separate key, not a field inside `KEY`'s JSON, because the two live in
+// different stores entirely — see the persistence effect below.
+const CYCLES_KEY = 'mizan.cycles.v1';
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>(DEFAULTS);
   const [hydrated, setHydrated] = useState(false);
+  // Decided once, at hydrate, and read (never awaited) by every later write.
+  // `SecureStore` does not exist on web — which this project's `npm run
+  // smoke` exercises in a real browser — and the one thing worse than cycle
+  // history not surviving a web reload is writing it into AsyncStorage the
+  // moment Keystore/Keychain is unavailable, which is exactly the store this
+  // task removes it from.
+  const secureAvailable = useRef(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(KEY)
-      .then((raw) => {
-        const saved = raw ? JSON.parse(raw) : null;
-        setState((s) => {
-          const next = { ...s, ...(saved ?? {}) };
-          if (!next.marksDate) next.marksDate = ymd(new Date());
-          // Set once, the first time it is found missing — a fresh install,
-          // or an install that predates this field. Everything before today
-          // is then "the app wasn't here yet", not "missed", which is the
-          // honest fix for the blank history a fresh install starts with
-          // (an invented fourteen days was the dishonest one).
-          if (!next.startedAt) next.startedAt = ymd(new Date());
-          return rollOver(next);
-        });
-      })
-      .catch(() => {})
-      .finally(() => setHydrated(true));
+    (async () => {
+      let cycles: State['cycles'] = [];
+      try {
+        secureAvailable.current = await SecureStore.isAvailableAsync();
+        if (secureAvailable.current) {
+          const rawCycles = await SecureStore.getItemAsync(CYCLES_KEY);
+          cycles = rawCycles ? JSON.parse(rawCycles) : [];
+        }
+      } catch {
+        // Treat a broken read the same as "unavailable" — losing this one
+        // field is far better than a crash loop on hydrate.
+        secureAvailable.current = false;
+      }
+
+      AsyncStorage.getItem(KEY)
+        .then((raw) => {
+          const saved = raw ? JSON.parse(raw) : null;
+          setState((s) => {
+            // An install made before this change may still have `cycles`
+            // sitting inside the old AsyncStorage blob. Secure storage wins
+            // once it has anything, but on the one upgrade where it does
+            // not yet, falling back to that legacy value migrates it
+            // forward instead of silently discarding a real cycle history.
+            const migrated = cycles.length > 0 ? cycles : (saved?.cycles ?? []);
+            const next = { ...s, ...(saved ?? {}), cycles: migrated };
+            if (!next.marksDate) next.marksDate = ymd(new Date());
+            // Set once, the first time it is found missing — a fresh install,
+            // or an install that predates this field. Everything before today
+            // is then "the app wasn't here yet", not "missed", which is the
+            // honest fix for the blank history a fresh install starts with
+            // (an invented fourteen days was the dishonest one).
+            if (!next.startedAt) next.startedAt = ymd(new Date());
+            return rollOver(next);
+          });
+        })
+        .catch(() => {})
+        .finally(() => setHydrated(true));
+    })();
   }, []);
 
   useEffect(() => {
-    if (hydrated) AsyncStorage.setItem(KEY, JSON.stringify(state)).catch(() => {});
+    if (!hydrated) return;
+    // `cycles` is cut from the object written here, not just from
+    // `stateForSync`'s network copy — AsyncStorage is plaintext in the app's
+    // private directory and swept into Android Auto Backup, and the whole
+    // point of this split is that nothing containing a cycle date ever
+    // reaches either path.
+    const { cycles, ...rest } = state;
+    AsyncStorage.setItem(KEY, JSON.stringify(rest)).catch(() => {});
+    if (secureAvailable.current) {
+      SecureStore.setItemAsync(CYCLES_KEY, JSON.stringify(cycles)).catch(() => {});
+    }
   }, [state, hydrated]);
 
   // An app left open overnight never cold-starts, so the date has to be
@@ -379,7 +432,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Wipes real history rather than replacing it with invented days.
       // `startedAt` is set to today because a fresh start has no past in
       // this app to judge — the same honest rule a first install gets.
-      reset: () => setState({ ...DEFAULTS, startedAt: ymd(new Date()) }),
+      //
+      // `cycles` needs its own explicit delete: the state reset alone would
+      // leave the write effect to overwrite the Keystore entry with `"[]"`
+      // on the next render, which happens to contain no dates either way,
+      // but a user wiping her data should not have to trust a side effect
+      // of unrelated timing for her periods to actually leave the device.
+      reset: () => {
+        setState({ ...DEFAULTS, startedAt: ymd(new Date()) });
+        if (secureAvailable.current) {
+          SecureStore.deleteItemAsync(CYCLES_KEY).catch(() => {});
+        }
+      },
     };
   }, [state]);
 

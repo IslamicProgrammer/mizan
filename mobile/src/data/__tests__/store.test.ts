@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 
@@ -10,13 +11,56 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
+// `expo-secure-store` is backed by native Keystore/Keychain code that does
+// not exist in the Jest environment. This stands in a tiny in-memory
+// keystore of its own, with `__setAvailable` and `__store` as test-only
+// escape hatches so a test can simulate web (where `isAvailableAsync`
+// resolves `false`) and can read back exactly what the real device's
+// secure storage would hold.
+jest.mock('expo-secure-store', () => {
+  let available = true;
+  let kv: Record<string, string> = {};
+  return {
+    isAvailableAsync: jest.fn(async () => available),
+    getItemAsync: jest.fn(async (key: string) => (key in kv ? kv[key] : null)),
+    setItemAsync: jest.fn(async (key: string, value: string) => {
+      kv[key] = value;
+    }),
+    deleteItemAsync: jest.fn(async (key: string) => {
+      delete kv[key];
+    }),
+    __setAvailable: (v: boolean) => {
+      available = v;
+    },
+    __store: () => kv,
+    __reset: () => {
+      available = true;
+      kv = {};
+    },
+  };
+});
+
+const secureMock = SecureStore as unknown as {
+  __setAvailable: (v: boolean) => void;
+  __store: () => Record<string, string>;
+  __reset: () => void;
+  isAvailableAsync: jest.Mock;
+  getItemAsync: jest.Mock;
+  setItemAsync: jest.Mock;
+  deleteItemAsync: jest.Mock;
+};
+
 // Mirrors the private `KEY` in store.tsx — there is no exported way to seed
 // a saved state ahead of hydration, so the tests write the same storage key
 // the module reads on mount.
 const STORAGE_KEY = 'mizan.state.v1';
+// Mirrors the private `CYCLES_KEY` in store.tsx.
+const CYCLES_SECURE_KEY = 'mizan.cycles.v1';
 
 afterEach(async () => {
   await AsyncStorage.clear();
+  secureMock.__reset();
+  jest.clearAllMocks();
   jest.useRealTimers();
 });
 
@@ -37,10 +81,13 @@ async function mountStore(): Promise<{ current: () => Store }> {
         React.createElement(Probe, { onReady: (s) => { latest = s; } }),
       ),
     );
-    // Hydration resolves on a real microtask (AsyncStorage.getItem), so one
-    // flush is not enough to also pick up the render it triggers.
-    await Promise.resolve();
-    await Promise.resolve();
+    // Hydration now chains `SecureStore.isAvailableAsync`, then (on most
+    // paths) `getItemAsync`, then `AsyncStorage.getItem`, before the state
+    // update that triggers the render this test waits for — several real
+    // microtask hops, not one, so this flushes more than a single pair.
+    for (let i = 0; i < 10; i += 1) {
+      await Promise.resolve();
+    }
   });
   if (!latest) throw new Error('store never hydrated');
   return { current: () => latest! };
@@ -252,5 +299,97 @@ describe("recordFor's today branch", () => {
     });
 
     expect(store.current().recentDays(1)[0]!.rec.rest).toBe(true);
+  });
+});
+
+describe('cycle history never reaches AsyncStorage', () => {
+  it('keeps cycles out of the AsyncStorage blob entirely', async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    // Asserted on the raw persisted string, not a parsed object — parsing
+    // first and checking for a `cycles` key would still pass if the dates
+    // were serialized under a different name.
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    expect(raw).not.toContain('cycles');
+    expect(raw).not.toContain('2026-10-05');
+  });
+
+  it('writes the cycle instead to SecureStore, keyed separately from the rest of the state', async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    expect(secureMock.__store()[CYCLES_SECURE_KEY]).toBe(
+      JSON.stringify([{ from: '2026-10-05' }]),
+    );
+  });
+
+  it('survives a fresh mount by reading SecureStore back on hydrate', async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    const reloaded = await mountStore();
+    expect(reloaded.current().cycles).toEqual([{ from: '2026-10-05' }]);
+  });
+
+  it('keeps cycles in memory only, and never falls back to AsyncStorage, when SecureStore is unavailable', async () => {
+    secureMock.__setAvailable(false);
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    // The live store still has it — cycle mode's own screen keeps working.
+    expect(store.current().cycles).toEqual([{ from: '2026-10-05' }]);
+    // But nothing was written anywhere durable: not to AsyncStorage...
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    expect(raw).not.toContain('cycles');
+    expect(raw).not.toContain('2026-10-05');
+    // ...and not to SecureStore either, since it reported itself unavailable.
+    expect(secureMock.setItemAsync).not.toHaveBeenCalled();
+    expect(Object.keys(secureMock.__store())).toHaveLength(0);
+  });
+
+  it('reset() deletes the SecureStore entry, not just the AsyncStorage one', async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+    expect(secureMock.__store()[CYCLES_SECURE_KEY]).toBeDefined();
+
+    await act(async () => {
+      store.current().reset();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(secureMock.deleteItemAsync).toHaveBeenCalledWith(CYCLES_SECURE_KEY);
+    // The write effect fires again right after reset (it depends on `state`,
+    // which just changed) and may re-create the key with an empty array —
+    // that is fine. What must never happen is a real date surviving the
+    // delete, so whatever is left behind is checked, not just assumed gone.
+    const left = secureMock.__store()[CYCLES_SECURE_KEY];
+    if (left !== undefined) expect(JSON.parse(left)).toEqual([]);
+    expect(store.current().cycles).toEqual([]);
   });
 });
