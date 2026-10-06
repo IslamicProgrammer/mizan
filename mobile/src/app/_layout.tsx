@@ -9,13 +9,38 @@ import {
 } from '@expo-google-fonts/onest';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { getEnv } from '../data/env';
-import { StoreProvider } from '../data/store';
+import { syncNotifications } from '../data/notify';
+import { StoreProvider, useStore } from '../data/store';
 import { color } from '../design/tokens';
+
+/**
+ * Keeps the device's pending alarms matching the user's own settings. The
+ * effect's dependency list is the three fields that change what should be
+ * scheduled — madhhab shifts Asr, `notifyBefore` shifts every lead time, and
+ * `cycleMode` turns the whole feature off — rather than `settings` itself,
+ * so marking a prayer or opening the garden does not re-touch the OS alarm
+ * list on every render. The same call also covers "schedule on launch":
+ * mounting this component is itself a change from no-effect-ran to
+ * effect-ran, so the window is rebuilt the first time just as it is on any
+ * later settings change.
+ */
+function NotificationSync() {
+  const { settings } = useStore();
+  useEffect(() => {
+    syncNotifications(settings).catch(() => {
+      // A scheduling failure (denied permission, a flaky OS call) must never
+      // surface as a crash or a blocked screen — the rest of the app works
+      // identically whether or not the alarms went in.
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.madhhab, settings.notifyBefore, settings.cycleMode]);
+  return null;
+}
 
 export default function RootLayout() {
   // Fail here, naming the variable, rather than three screens later as a
@@ -39,6 +64,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: color.page }}>
       <SafeAreaProvider>
         <StoreProvider>
+          <NotificationSync />
           <StatusBar style="dark" />
           <Stack
             screenOptions={{

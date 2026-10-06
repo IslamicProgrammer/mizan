@@ -38,7 +38,15 @@
         }
       ],
       "expo-asset",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#50320F",
+          "defaultChannel": "prayers"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
