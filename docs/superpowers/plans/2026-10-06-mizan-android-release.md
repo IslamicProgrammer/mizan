@@ -2032,3 +2032,134 @@ cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
 git add mobile/src
 git commit -m "feat(ui): show honest empty states instead of invented data"
 ```
+
+---
+
+### Task 17: Record which prayers were kept, not just how many
+
+Added during execution, after Task 15 found that per-prayer consistency is not
+recoverable from the stored data. `DayRecord` keeps a daily count `kept` (0-5)
+and nothing else, so "you keep missing Asr" — the one insight that makes a
+statistics screen worth opening, and the chart `design-v3` draws — cannot be
+computed at all. Task 15 honestly repurposed that chart to a per-day view.
+
+**Sequence this before Task 8.** It changes the shape of a `DayRecord`, which is
+what Task 8 syncs. Doing it now also costs no migration: the app has no real
+users yet. Once testers have a fortnight of history, the same change means
+migrating their prayer records.
+
+**Files:**
+- Modify: `mobile/src/data/store.tsx` (`DayRecord`, `rollOver`, `repairDay`)
+- Modify: `mobile/src/data/stats.ts` (per-prayer consistency)
+- Modify: `mobile/src/app/stats.tsx` (the chart)
+- Modify: `server/src/sync/merge.ts` (`sanitize`, `mergeDay`)
+- Test: `mobile/src/data/__tests__/stats.test.ts`,
+  `mobile/src/data/__tests__/store.test.ts`,
+  `server/src/__tests__/merge.test.ts`
+
+**Interfaces:**
+- `DayRecord` gains `prayers?: PrayerId[]` — which of the five were kept.
+  Optional, because records written before this task have none.
+- `kept` stays and remains authoritative for the count. `prayers` is the subset
+  that is *known*, so the invariant is `prayers.length <= kept`, not equality —
+  a generic repair can raise the count without naming a prayer.
+- `perPrayer(history, from, to, startedAt?): { key: PrayerId; pct: number; days: number }[]`
+  in `stats.ts`, where `days` is how many days the percentage is based on.
+- `repairDay(date: string, prayer?: PrayerId)` — the optional argument lets the
+  qaza screen say which prayer was made up while the garden keeps calling it
+  without one.
+
+Note `PrayerId` includes `'sunrise'`, which is **not** a prayer — it marks the
+end of the Fajr window. Only the five in `FIVE` may appear in `prayers`.
+
+- [ ] **Step 1: Write the failing per-prayer test**
+
+```ts
+import { perPrayer } from '../stats';
+
+const h = {
+  '2026-10-01': { kept: 5, prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] },
+  '2026-10-02': { kept: 4, prayers: ['dhuhr', 'asr', 'maghrib', 'isha'] },
+  '2026-10-03': { kept: 0, rest: true },
+  '2026-10-04': { kept: 2 },
+};
+
+it('reports each prayer over the days that actually recorded one', () => {
+  const r = perPrayer(h, new Date('2026-10-01'), new Date('2026-10-04'), '2026-10-01');
+  const fajr = r.find((x) => x.key === 'fajr');
+  // Oct 1 kept it, Oct 2 did not. Oct 3 is a rest day and owes nothing.
+  // Oct 4 has a count but no `prayers`, so it cannot say anything about Fajr.
+  expect(fajr).toEqual({ key: 'fajr', pct: 50, days: 2 });
+});
+
+it('never reports sunrise, which is not a prayer', () => {
+  const r = perPrayer(h, new Date('2026-10-01'), new Date('2026-10-04'), '2026-10-01');
+  expect(r.map((x) => x.key)).toEqual(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']);
+});
+
+it('returns zero days rather than NaN when nothing has been recorded', () => {
+  const r = perPrayer({}, new Date('2026-10-01'), new Date('2026-10-04'), undefined);
+  expect(r.every((x) => x.pct === 0 && x.days === 0)).toBe(true);
+});
+```
+
+`days` is in the return type because a percentage from two days is not worth
+showing as confidently as one from sixty, and the screen needs to be able to say
+so rather than imply precision it does not have.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `cd mobile && npx jest src/data/__tests__/stats.test.ts`
+Expected: FAIL — `perPrayer` is not exported.
+
+- [ ] **Step 3: Write `perPrayer`**
+
+A day contributes to a prayer's denominator only when it has a `prayers` array —
+a legacy record with a bare count genuinely cannot say whether Asr was kept, and
+guessing would fabricate exactly what this project keeps removing. Rest days and
+days outside `[startedAt, today]` contribute nothing, as in `consistency`.
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+- [ ] **Step 5: Record the marks on the mobile side**
+
+In `rollOver`, build `prayers` from the day's `marks`, keeping only ids in
+`FIVE` and only those actually marked as kept. In `repairDay(date, prayer?)`,
+append the prayer to `prayers` when one is given, and raise `kept` either way.
+Keep `prayers.length <= kept` true in both paths.
+
+- [ ] **Step 6: Merge the new field on the server**
+
+In `sanitize`, drop any entry in `prayers` that is not one of the five, remove
+duplicates, and clamp so `prayers.length <= kept`. In `mergeDay`, the existing
+rule is unchanged where it already decides: a newer `updatedAt` wins the record
+whole. In the monotonic fallback, take the **union** of both sides' `prayers`
+and set `kept` to the greater of the two counts and the union's length — the
+union cannot invent a prayer neither side recorded, and the clamp at
+`MAX_KEPT = 5` still applies.
+
+Add server tests for: an unknown id dropped, `'sunrise'` dropped, duplicates
+removed, the union in the monotonic path, and a newer record replacing an older
+one's `prayers` wholesale rather than merging field-by-field.
+
+- [ ] **Step 7: Put the chart back**
+
+`stats.tsx` shows the per-prayer chart using `perPrayer`, labelled with
+`PRAYER_NAMES`. When every prayer has `days === 0`, show the existing `Empty`
+component rather than five zero bars — the Task 15 fix-round rule, that a day
+with no record is not a failure, applies here too. Where `days` is low, say what
+the figure rests on: `so'nggi {days} kun asosida`.
+
+- [ ] **Step 8: Gate**
+
+```bash
+cd server && npx tsc --noEmit && npm test
+cd ../mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+```
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add server/src mobile/src
+git commit -m "feat(stats): record which prayers were kept, so the chart can tell you"
+```
