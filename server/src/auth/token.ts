@@ -20,7 +20,8 @@ export async function issueToken(userId: string, ttlSeconds = THIRTY_DAYS): Prom
  */
 export async function verifyToken(jwt: string): Promise<{ userId: string } | null> {
   try {
-    const { payload } = await jwtVerify(jwt, key);
+    // The verifier accepts exactly the algorithm we issue.
+    const { payload } = await jwtVerify(jwt, key, { algorithms: ['HS256'] });
     return payload.sub ? { userId: String(payload.sub) } : null;
   } catch {
     return null;
