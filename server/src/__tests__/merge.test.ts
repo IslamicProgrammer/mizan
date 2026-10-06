@@ -85,3 +85,41 @@ describe('mergeHistory', () => {
     });
   });
 });
+
+describe('mergeHistory with updatedAt', () => {
+  const older = { kept: 5, updatedAt: 1_000 };
+  const newer = { kept: 4, updatedAt: 2_000 };
+
+  it('lets a newer record lower the count', () => {
+    expect(mergeHistory({ '2026-10-01': newer }, { '2026-10-01': older }))
+      .toEqual({ '2026-10-01': newer });
+  });
+
+  it('lets a newer record clear a rest day', () => {
+    expect(mergeHistory(
+      { '2026-10-01': { kept: 0, updatedAt: 2_000 } },
+      { '2026-10-01': { kept: 0, rest: true, updatedAt: 1_000 } },
+    )).toEqual({ '2026-10-01': { kept: 0, updatedAt: 2_000 } });
+  });
+
+  it('falls back to the monotonic rule when either side has no timestamp', () => {
+    expect(mergeHistory({ '2026-10-01': { kept: 5 } }, { '2026-10-01': { kept: 2 } }))
+      .toEqual({ '2026-10-01': { kept: 5 } });
+  });
+
+  it('prefers the timestamped record when only one side has one', () => {
+    expect(mergeHistory({ '2026-10-01': { kept: 1, updatedAt: 9 } }, { '2026-10-01': { kept: 5 } }))
+      .toEqual({ '2026-10-01': { kept: 1, updatedAt: 9 } });
+  });
+
+  it('falls back to the monotonic rule on a tie, regardless of argument order', () => {
+    // Equal timestamps must not let either argument win outright - the
+    // whole point of the comparator is that the result does not depend on
+    // which side was passed as `local` and which as `remote`.
+    const a = { '2026-10-01': { kept: 1, rest: true, updatedAt: 5_000 } };
+    const b = { '2026-10-01': { kept: 4, updatedAt: 5_000 } };
+    const expected = { '2026-10-01': { kept: 4, rest: true, updatedAt: 5_000 } };
+    expect(mergeHistory(a, b)).toEqual(expected);
+    expect(mergeHistory(b, a)).toEqual(expected);
+  });
+});

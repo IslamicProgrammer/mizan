@@ -1,4 +1,10 @@
-export type DayRecord = { kept: number; rest?: boolean };
+/**
+ * `updatedAt` is optional because every client already in the field predates
+ * it and will never send one. That absence is not a gap to fill in — it is
+ * the signal that tells the merge "this device cannot express a correction,
+ * fall back to the old monotonic rule for it."
+ */
+export type DayRecord = { kept: number; rest?: boolean; updatedAt?: number };
 export type History = Record<string, DayRecord>;
 
 /**
@@ -35,6 +41,12 @@ function isDayRecord(value: unknown): value is DayRecord {
   const r = value as Record<string, unknown>;
   if (typeof r.kept !== 'number' || !Number.isFinite(r.kept) || r.kept < 0) return false;
   if ('rest' in r && typeof r.rest !== 'boolean') return false;
+  // An invalid timestamp is worse than a missing one: a missing one falls
+  // back to the monotonic rule, but a garbage one (NaN, a negative, a
+  // string) could let a device win a whole-record overwrite it never earned.
+  if ('updatedAt' in r && (typeof r.updatedAt !== 'number' || !Number.isFinite(r.updatedAt) || r.updatedAt < 0)) {
+    return false;
+  }
   return true;
 }
 
@@ -59,18 +71,23 @@ function sanitize(history: History): { history: History; dropped: string[] } {
     // fractional count ("kept: 2.5") is not a number of prayers, and an
     // out-of-range one is handled by MAX_KEPT above.
     const kept = Math.min(Math.floor(value.kept), MAX_KEPT);
-    out[key] = value.rest !== undefined ? { kept, rest: value.rest } : { kept };
+    const rec: DayRecord = { kept };
+    if (value.rest !== undefined) rec.rest = value.rest;
+    if (value.updatedAt !== undefined) rec.updatedAt = value.updatedAt;
+    out[key] = rec;
   }
   return { history: out, dropped };
 }
 
 /**
- * Last-write-wins would let a stale device erase a day that was actually
- * prayed. Prayers only accumulate, so the higher count is the true one, and a
- * rest day always survives — it is a statement ("I am not expected to pray
- * today"), not an absence of data, so it outranks a side that simply never
- * recorded one. A date in the future is merged like any other date rather
- * than rejected: a device whose clock or timezone is ahead of the server's is
+ * Pure last-write-wins would let a stale device erase a day that was
+ * actually prayed, so plain timestamps are not enough on their own — the
+ * monotonic rule below is still what protects a record that carries no
+ * timestamp at all. Prayers only accumulate under that rule, and a rest day
+ * always survives — it is a statement ("I am not expected to pray today"),
+ * not an absence of data, so it outranks a side that simply never recorded
+ * one. A date in the future is merged like any other date rather than
+ * rejected: a device whose clock or timezone is ahead of the server's is
  * routine, not an attack, and discarding its entry would be exactly the data
  * loss this function exists to prevent. A malformed date key or a value that
  * is not a day record is dropped instead, by `sanitize`, because there is no
@@ -92,13 +109,49 @@ export function mergeHistoryWithDrops(local: History, remote: History): { histor
   const out: History = { ...r.history };
   for (const [date, lRec] of Object.entries(l.history)) {
     const rRec = out[date];
-    if (!rRec) {
-      out[date] = lRec;
-      continue;
-    }
-    const kept = Math.max(lRec.kept, rRec.kept);
-    out[date] = lRec.rest || rRec.rest ? { kept, rest: true } : { kept };
+    out[date] = rRec ? mergeDay(lRec, rRec) : lRec;
   }
   const dropped = [...new Set([...l.dropped, ...r.dropped])];
   return { history: out, dropped };
+}
+
+/**
+ * The per-date comparator. A record with a timestamp is a device telling us
+ * "this is the true state of this day as of this moment" — count and rest
+ * flag together, as one statement, not two fields to reconcile separately.
+ * Splitting them (say, taking the newer count but OR-ing the old rest flag)
+ * would let the stale side's rest flag survive a correction that was
+ * supposed to clear it, which is exactly the bug this function exists to
+ * fix. So when both sides have a timestamp, the strictly newer one wins
+ * whole. When only one side has a timestamp, that side is the only one
+ * capable of expressing a correction at all, so it wins whole regardless of
+ * the untimestamped side's count. When neither has one — the common case
+ * while old clients are still in the field — fall back to the monotonic
+ * rule. Equal timestamps also fall back to the monotonic rule rather than
+ * picking either argument, specifically so the result never depends on
+ * which side was passed as `local` and which as `remote`.
+ */
+function mergeDay(a: DayRecord, b: DayRecord): DayRecord {
+  if (a.updatedAt !== undefined && b.updatedAt !== undefined) {
+    if (a.updatedAt > b.updatedAt) return a;
+    if (b.updatedAt > a.updatedAt) return b;
+    return monotonic(a, b, a.updatedAt);
+  }
+  if (a.updatedAt !== undefined) return a;
+  if (b.updatedAt !== undefined) return b;
+  return monotonic(a, b);
+}
+
+/**
+ * The original Task 7 rule, kept verbatim for the case neither side (or, on
+ * an equal-timestamp tie, both sides equally) can express a correction. An
+ * `updatedAt` is attached to the result only when the caller had one to
+ * offer (the tie case) — inventing one for two untimestamped records would
+ * claim a precision about "when" that never existed.
+ */
+function monotonic(a: DayRecord, b: DayRecord, updatedAt?: number): DayRecord {
+  const kept = Math.max(a.kept, b.kept);
+  const rec: DayRecord = a.rest || b.rest ? { kept, rest: true } : { kept };
+  if (updatedAt !== undefined) rec.updatedAt = updatedAt;
+  return rec;
 }

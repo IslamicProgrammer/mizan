@@ -20,9 +20,14 @@ export type PrayerMark = 'done' | 'late' | 'qaza' | null;
 /**
  * One day in the garden. `kept` is how many of the five were prayed, which is
  * the plant's growth stage. `rest` marks a cycle-mode day: the plant pauses, it
- * does not wither, and the streak is not broken.
+ * does not wither, and the streak is not broken. `updatedAt` is when this
+ * device last wrote the record, in epoch milliseconds — the server's merge
+ * uses it to let a correction win over a stale value instead of only ever
+ * taking the higher count. It is optional because an install that predates
+ * this field will never set it, and must keep syncing exactly as it does
+ * today.
  */
-export type DayRecord = { kept: number; rest?: boolean };
+export type DayRecord = { kept: number; rest?: boolean; updatedAt?: number };
 
 export const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -52,6 +57,14 @@ type State = {
    * prayed, the streak is wrong, and yesterday is never written to history.
    */
   marksDate: string;
+  /**
+   * When `marks` last changed. Today's record is derived, not stored in
+   * `history`, so this is what lets a correction to today's count (marking,
+   * then unmarking a mis-tap) carry a newer `updatedAt` than whatever was
+   * last synced — without it, today would never be able to win a merge
+   * against its own stale earlier value.
+   */
+  marksUpdatedAt?: number;
   /** past days, keyed YYYY-MM-DD. Today is derived from `marks`, not stored. */
   history: Record<string, DayRecord>;
 };
@@ -96,10 +109,12 @@ function rollOver(state: State): State {
     ...state,
     history: {
       ...state.history,
-      // a cycle-mode day is a rest day, not a day of zero prayers
+      // a cycle-mode day is a rest day, not a day of zero prayers. Stamped
+      // on write, same as any other history entry, so a later repair to
+      // this now-archived day can still win against it.
       [state.marksDate]: state.settings.cycleMode
-        ? { kept: 0, rest: true }
-        : { kept: keptIn(state.marks) },
+        ? { kept: 0, rest: true, updatedAt: Date.now() }
+        : { kept: keptIn(state.marks), updatedAt: Date.now() },
     },
     marks: { ...EMPTY_MARKS },
     marksDate: today,
@@ -253,7 +268,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const keptToday = keptIn(state.marks);
 
     const recordFor = (date: string, today: boolean): DayRecord =>
-      today ? { kept: keptToday } : (state.history[date] ?? { kept: 0 });
+      today
+        ? // Today isn't written into `history` until roll-over, so its own
+          // `updatedAt` has to come from `marksUpdatedAt` instead - the
+          // timestamp of the last `setMark` - or a mis-tap corrected before
+          // midnight would carry no timestamp at all.
+          (state.marksUpdatedAt !== undefined
+            ? { kept: keptToday, updatedAt: state.marksUpdatedAt }
+            : { kept: keptToday })
+        : (state.history[date] ?? { kept: 0 });
 
     const recentDays = (n: number) => {
       const out: { date: string; rec: DayRecord; today: boolean }[] = [];
@@ -285,7 +308,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       keptToday,
       recentDays,
       streak,
-      setMark: (id, mark) => setState((s) => ({ ...s, marks: { ...s.marks, [id]: mark } })),
+      setMark: (id, mark) =>
+        setState((s) => ({ ...s, marks: { ...s.marks, [id]: mark }, marksUpdatedAt: Date.now() })),
       patchSettings: (p) => setState((s) => ({ ...s, settings: { ...s.settings, ...p } })),
       setAnswers: (answers) => setState((s) => ({ ...s, answers })),
       setTasbih: (tasbih) => setState((s) => ({ ...s, tasbih })),
@@ -293,7 +317,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setState((s) => {
           const cur = s.history[date] ?? { kept: 0 };
           if (cur.rest || cur.kept >= 5) return s;
-          return { ...s, history: { ...s.history, [date]: { ...cur, kept: cur.kept + 1 } } };
+          return {
+            ...s,
+            history: { ...s.history, [date]: { ...cur, kept: cur.kept + 1, updatedAt: Date.now() } },
+          };
         }),
       finishOnboarding: () => setState((s) => ({ ...s, onboarded: true })),
       reset: () => setState({ ...DEFAULTS, history: seedHistory() }),
