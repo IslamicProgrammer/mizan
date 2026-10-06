@@ -13,10 +13,15 @@ import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { getEnv } from '../data/env';
 import { StoreProvider } from '../data/store';
 import { color } from '../design/tokens';
 
 export default function RootLayout() {
+  // Fail here, naming the variable, rather than three screens later as a
+  // confusing network error. Expo Router's error boundary shows the message.
+  getEnv();
+
   // Onest carries the whole type system, including the 900-weight hero
   // numerals. Rendering before it loads causes a visible reflow, so hold.
   const [ready] = useFonts({

@@ -18,4 +18,26 @@ export function readEnv(raw: Raw): Env {
   };
 }
 
-export const ENV: Env = readEnv(process.env as Raw);
+/**
+ * Expo inlines an env var only where the source literally spells
+ * `process.env.EXPO_PUBLIC_NAME` as a member expression. Reading it through a
+ * string key — or handing the whole `process.env` to a helper — leaves nothing
+ * for Metro to substitute, and the value is then absent on device: there is no
+ * OS environment inside Hermes. So every variable this app reads is named
+ * here, literally, exactly once.
+ */
+const RAW: Raw = {
+  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+};
+
+let cached: Env | undefined;
+
+/**
+ * Lazy and memoised: importing this module for `readEnv` or for its types must
+ * not require a configured environment. Startup still fails fast, because the
+ * app's root layout calls this before anything renders.
+ */
+export function getEnv(): Env {
+  if (!cached) cached = readEnv(RAW);
+  return cached;
+}
