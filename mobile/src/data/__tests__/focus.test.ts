@@ -82,4 +82,32 @@ describe('addFocusMinutes', () => {
     const reloaded = await mountStore();
     expect(reloaded.current().focusMinutes).toBe(7);
   });
+
+  it("writes today's bucket alongside the total", async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+
+    await act(async () => {
+      store.current().addFocusMinutes(20);
+    });
+
+    expect(store.current().focusByDay).toEqual({ '2026-10-05': 20 });
+  });
+
+  it("a second session the same day adds to today's bucket rather than replacing it", async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+
+    await act(async () => {
+      store.current().addFocusMinutes(20);
+    });
+    await act(async () => {
+      store.current().addFocusMinutes(15);
+    });
+
+    expect(store.current().focusByDay).toEqual({ '2026-10-05': 35 });
+    expect(store.current().focusMinutes).toBe(35);
+  });
 });

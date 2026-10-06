@@ -46,7 +46,7 @@ export type Settings = {
   notifyBefore: number; // minutes
 };
 
-type State = {
+export type State = {
   onboarded: boolean;
   settings: Settings;
   /** today's marks, keyed by prayer */
@@ -66,6 +66,21 @@ type State = {
    * app-blocking yet, so there is nothing to have earned before today.
    */
   focusMinutes: number;
+  /**
+   * The same minutes as `focusMinutes`, bucketed by the `ymd()` day they were
+   * earned on. `focusMinutes` alone cannot draw a weekly chart honestly —
+   * there is no way to recover which day a total belongs to — so this is
+   * written alongside it rather than derived from it later.
+   */
+  focusByDay: Record<string, number>;
+  /**
+   * Each entry is one cycle: the day the user turned the mode on, and the day
+   * they turned it off. `to` is absent while a cycle is still open. This is
+   * health data the user never asked us to send anywhere, so it stays on the
+   * device and is never part of the synced profile — see `stateForSync`
+   * below.
+   */
+  cycles: { from: string; to?: string }[];
   /**
    * The day `marks` belongs to. Without this, yesterday's marks are still
    * "today" when the app is reopened: the garden thinks the day is already
@@ -91,6 +106,20 @@ type State = {
   startedAt?: string;
 };
 
+/**
+ * The subset of `State` that Task 8's sync call may send to `PUT /profile`.
+ * `cycles` is dropped here, at the one place the full state object exists,
+ * rather than at the call site — the app promises a woman using cycle mode
+ * that this never leaves her phone, and that promise only holds if there is
+ * no path from this object to the network, not just a convention that the
+ * caller remembers to follow. Task 8 should build its request body from this
+ * function's return value, never from `state` directly.
+ */
+export function stateForSync(state: State): Omit<State, 'cycles'> {
+  const { cycles, ...syncable } = state;
+  return syncable;
+}
+
 const DEFAULTS: State = {
   onboarded: false,
   settings: {
@@ -110,6 +139,8 @@ const DEFAULTS: State = {
   tasbih: { count: 0, targetIdx: 0 },
   qaza: { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
   focusMinutes: 0,
+  focusByDay: {},
+  cycles: [],
 };
 
 const EMPTY_MARKS: Record<PrayerId, PrayerMark> = {
@@ -288,7 +319,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       streak,
       setMark: (id, mark) =>
         setState((s) => ({ ...s, marks: { ...s.marks, [id]: mark }, marksUpdatedAt: Date.now() })),
-      patchSettings: (p) => setState((s) => ({ ...s, settings: { ...s.settings, ...p } })),
+      patchSettings: (p) =>
+        setState((s) => {
+          const settings = { ...s.settings, ...p };
+          // The open/closed state of the last entry is the guard, not the
+          // incoming flag by itself — if `cycleMode` is somehow already
+          // `true` when this fires again (e.g. a rapid double-tap replaying
+          // the same patch), an open entry already exists and must not get
+          // a sibling. Likewise closing only ever touches an entry that is
+          // actually open.
+          const last = s.cycles[s.cycles.length - 1];
+          const open = last !== undefined && last.to === undefined;
+          let cycles = s.cycles;
+          if ('cycleMode' in p && p.cycleMode === true && !open) {
+            cycles = [...s.cycles, { from: ymd(new Date()) }];
+          } else if ('cycleMode' in p && p.cycleMode === false && open) {
+            cycles = s.cycles.map((c, i) =>
+              i === s.cycles.length - 1 ? { ...c, to: ymd(new Date()) } : c,
+            );
+          }
+          return { ...s, settings, cycles };
+        }),
       setAnswers: (answers) => setState((s) => ({ ...s, answers })),
       setTasbih: (tasbih) => setState((s) => ({ ...s, tasbih })),
       setQaza: (id, n) =>
@@ -309,13 +360,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           };
         }),
       addFocusMinutes: (n) =>
-        setState((s) => ({
-          ...s,
+        setState((s) => {
           // A session that ends early, or a duration derived from a clock
           // jump, must never subtract from minutes already banked — only a
           // finite, positive amount is added; anything else adds nothing.
-          focusMinutes: s.focusMinutes + (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0),
-        })),
+          const add = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+          const today = ymd(new Date());
+          return {
+            ...s,
+            focusMinutes: s.focusMinutes + add,
+            // A second session the same day adds to today's bucket rather
+            // than replacing it — the chart would otherwise understate a day
+            // with more than one completed session.
+            focusByDay: { ...s.focusByDay, [today]: (s.focusByDay[today] ?? 0) + add },
+          };
+        }),
       finishOnboarding: () => setState((s) => ({ ...s, onboarded: true })),
       // Wipes real history rather than replacing it with invented days.
       // `startedAt` is set to today because a fresh start has no past in

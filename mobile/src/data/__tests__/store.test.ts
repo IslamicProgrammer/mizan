@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 
-import { StoreProvider, useStore } from '../store';
+import { StoreProvider, stateForSync, useStore } from '../store';
 
 type Store = ReturnType<typeof useStore>;
 
@@ -148,6 +148,89 @@ describe('setQaza', () => {
     });
 
     expect(store.current().qaza.asr).toBe(0);
+  });
+});
+
+describe('cycle mode', () => {
+  it('appends an open cycle when cycleMode flips on', async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    expect(store.current().cycles).toEqual([{ from: '2026-10-05' }]);
+  });
+
+  it('closes the same open cycle when cycleMode flips off, rather than opening a new one', async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    jest.setSystemTime(new Date('2026-10-08T09:00:00.000Z'));
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: false });
+    });
+
+    expect(store.current().cycles).toEqual([{ from: '2026-10-05', to: '2026-10-08' }]);
+  });
+
+  it('does not append a second open cycle when flipped on twice', async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-05T09:00:00.000Z'));
+
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    expect(store.current().cycles).toHaveLength(1);
+  });
+
+  it('a second on/off round starts a new, separate cycle', async () => {
+    const store = await mountStore();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-01T09:00:00.000Z'));
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+    jest.setSystemTime(new Date('2026-09-04T09:00:00.000Z'));
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: false });
+    });
+
+    jest.setSystemTime(new Date('2026-10-02T09:00:00.000Z'));
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    expect(store.current().cycles).toEqual([
+      { from: '2026-09-01', to: '2026-09-04' },
+      { from: '2026-10-02' },
+    ]);
+  });
+});
+
+describe('stateForSync', () => {
+  it('drops cycles from the object Task 8 will send to the server', async () => {
+    const store = await mountStore();
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    const payload = stateForSync(store.current());
+
+    expect('cycles' in payload).toBe(false);
+    // Everything else still rides along — only the one health-data field is cut.
+    expect(payload.settings.cycleMode).toBe(true);
   });
 });
 

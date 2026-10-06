@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Bar, Button, Label, List, Row, Screen, Tiles } from '../../components/ui';
+import { Bar, Button, Screen, Tiles } from '../../components/ui';
 import { ICONS } from '../../data/icons';
 import { useStore } from '../../data/store';
 import { color, font, layout, lift, size } from '../../design/tokens';
@@ -39,13 +39,11 @@ export default function Profile() {
         ]}
       />
 
-      <Label>Hisob</Label>
-      <List>
-        <Row icon="heart" title="Bepul reja" sub="Premium bilan ko'proq imkoniyat" chevron />
-        <Row title="Email" value="m···@gmail.com" />
-        <Row title="Ma'lumotlarimni yuklab olish" chevron />
-        <Row title="Boshqa qurilmalar" value="1 ta" chevron />
-      </List>
+      {/* "Hisob" (plan, email, data export, devices) only describes a real
+          account, which does not exist while signed out — Task 8 wires up
+          Google sign-in and brings this section back behind that check. One
+          honest "no account" screen beats this section and the identity row
+          above stacked together, each implying a different truth. */}
 
       <View style={s.foot}>
         <Button label="7 kun bepul sinash" onPress={() => {}} />
