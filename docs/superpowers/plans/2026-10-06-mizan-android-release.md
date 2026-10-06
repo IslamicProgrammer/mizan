@@ -229,7 +229,24 @@ git commit -m "chore: single repo at project root, secrets ignored"
 - Test: `mobile/src/data/__tests__/env.test.ts`
 
 **Interfaces:**
-- Produces: `ENV: { supabaseUrl: string; supabaseAnonKey: string }` — imported by `auth.ts` in Task 5.
+- Produces: `readEnv(raw): Env` and `getEnv(): Env` where `Env = { apiUrl: string }`,
+  from the single variable `EXPO_PUBLIC_API_URL`. Consumed by the mobile app's own
+  network layer in Task 8.
+
+> **Amended during execution.** This task originally produced
+> `{ supabaseUrl, supabaseAnonKey }` and an eager `export const ENV`. Both are
+> gone. Supabase was dropped when the backend was settled as Node.js only, and
+> the eager export was replaced by a lazy memoised `getEnv()` after review found
+> two defects in the code below: Expo's bundler inlines an `EXPO_PUBLIC_*`
+> variable **only** where the source literally spells
+> `process.env.EXPO_PUBLIC_NAME` as a member expression, so passing the whole
+> `process.env` into a helper that indexes it by string left nothing for Metro to
+> substitute and the value was `undefined` on every device; and an eager export
+> gave the module an import-time side effect that would throw for any importer
+> wanting only its types. The shipped version is `mobile/src/data/env.ts` at
+> commits `2841e52` and `596cb66` — read that file, not the steps below. The
+> server's own `ENV` (`databaseUrl`, `jwtSecret`, `googleClientId`, `port`) is a
+> separate thing produced by Task 5, and it is that one `auth.ts` imports.
 
 A missing env must fail at startup with a sentence naming the variable, not
 produce `undefined` that surfaces as a confusing network error three screens later.
