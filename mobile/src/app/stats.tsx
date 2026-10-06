@@ -27,12 +27,11 @@ export default function Stats() {
 
   const weekAgo = new Date(now);
   weekAgo.setDate(weekAgo.getDate() - 6);
-  // A day before `startedAt` is a day the app wasn't installed, not a day of
-  // zeroes the user earned — clip the range so it never shows up as a
-  // fabricated-looking run of missed prayers.
-  const start = startedAt ? new Date(`${startedAt}T00:00:00`) : weekAgo;
-  const from = start > weekAgo ? start : weekAgo;
-  const bars = consistency(historyWithToday, from, now);
+  // `consistency` itself clips anything before `startedAt` and anything
+  // after today, so the window below is just "the last 7 days" — it doesn't
+  // need to know the install date to avoid showing a fabricated-looking run
+  // of missed prayers.
+  const bars = consistency(historyWithToday, weekAgo, now, startedAt);
 
   return (
     <Screen glow="soft" pad={false}>

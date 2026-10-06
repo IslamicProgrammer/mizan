@@ -67,22 +67,40 @@ export function monthTotals(
 
 /**
  * Per-day consistency between `from` and `to`, inclusive. A day with no
- * history entry is a day that was owed and not recorded, so it counts as
- * fully missed (0%) rather than being skipped — the only day skipped
- * entirely is a rest day, which owed nothing and has no percentage to show.
+ * history entry and no record is only a real miss if it was actually owed:
+ * on or before today, and on or after `startedAt`. A future day is not a day
+ * yet, and a day before the app was installed is not a day the user failed
+ * — neither gets a bar at all, the same way a rest day doesn't. Only a day
+ * genuinely inside that owed window comes out as fully missed (0%) when
+ * untouched.
+ *
+ * `to` is clamped to today here rather than trusting every caller to do it,
+ * because the one time a caller forgets is the time the garden lies again.
  */
 export function consistency(
   history: History,
   from: Date,
   to: Date,
+  startedAt?: string,
 ): { key: string; pct: number; warn?: boolean }[] {
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  const clampedEnd = end > todayMid ? todayMid : end;
+
+  // An install that predates `startedAt` has no recorded start date. Falling
+  // back to the earliest day actually in history means an old install still
+  // gets nothing but a wall of warnings for days before the app ever wrote
+  // anything — same rule, just applied from the best evidence available.
+  const earliest = startedAt ?? Object.keys(history).sort()[0];
+
   const out: { key: string; pct: number; warn?: boolean }[] = [];
   const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-  while (cursor <= end) {
+  while (cursor <= clampedEnd) {
     const key = keyOf(cursor);
+    const owed = !earliest || key >= earliest;
     const rec = history[key];
-    if (!rec?.rest) {
+    if (owed && !rec?.rest) {
       const kept = rec?.kept ?? 0;
       const pct = Math.round((kept / FIVE_PER_DAY) * 100);
       out.push({ key: String(cursor.getDate()), pct, warn: pct < 80 });

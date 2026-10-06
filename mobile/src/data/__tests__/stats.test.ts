@@ -35,4 +35,33 @@ describe('consistency', () => {
     const from = new Date('2026-10-05');
     expect(consistency({}, from, from)).toEqual([{ key: '5', pct: 0, warn: true }]);
   });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('draws no bar for a day in the future', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-02'));
+    const bars = consistency({ '2026-10-01': { kept: 5 } }, new Date('2026-10-01'), new Date('2026-10-31'), '2026-10-01');
+    // with today pinned to 2026-10-02 via fake timers
+    expect(bars).toHaveLength(2);
+  });
+
+  it('draws no bar before the user started', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-05'));
+    const bars = consistency({ '2026-10-05': { kept: 5 } }, new Date('2026-10-01'), new Date('2026-10-31'), '2026-10-05');
+    expect(bars.every((b) => Number(b.key) >= 5)).toBe(true);
+  });
+
+  it('does not flag a rest day as a miss', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-01'));
+    const bars = consistency({ '2026-10-01': { kept: 0, rest: true } }, new Date('2026-10-01'), new Date('2026-10-31'), '2026-10-01');
+    expect(bars.some((b) => b.warn)).toBe(false);
+  });
+
+  it('still flags a real missed day', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-01'));
+    const bars = consistency({ '2026-10-01': { kept: 0 } }, new Date('2026-10-01'), new Date('2026-10-31'), '2026-10-01');
+    expect(bars[0]?.warn).toBe(true);
+  });
 });
