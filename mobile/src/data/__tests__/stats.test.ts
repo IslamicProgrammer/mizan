@@ -60,8 +60,34 @@ describe('consistency', () => {
   });
 
   it('still flags a real missed day', () => {
-    jest.useFakeTimers().setSystemTime(new Date('2026-10-01'));
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-02'));
     const bars = consistency({ '2026-10-01': { kept: 0 } }, new Date('2026-10-01'), new Date('2026-10-31'), '2026-10-01');
     expect(bars[0]?.warn).toBe(true);
+  });
+
+  it('never flags today, however little of it has happened', () => {
+    // clock pinned to 2026-10-02T05:00:00Z
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-02T05:00:00Z'));
+    const bars = consistency(
+      { '2026-10-01': { kept: 5 }, '2026-10-02': { kept: 1 } },
+      new Date('2026-10-01'),
+      new Date('2026-10-31'),
+      '2026-10-01',
+    );
+    const today = bars.find((b) => b.key === '2');
+    expect(today?.pct).toBe(20);
+    expect(today?.warn).toBeFalsy();
+  });
+
+  it('flags that same day once it is yesterday', () => {
+    // clock pinned to 2026-10-03T05:00:00Z, same history
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-03T05:00:00Z'));
+    const bars = consistency(
+      { '2026-10-01': { kept: 5 }, '2026-10-02': { kept: 1 } },
+      new Date('2026-10-01'),
+      new Date('2026-10-31'),
+      '2026-10-01',
+    );
+    expect(bars.find((b) => b.key === '2')?.warn).toBe(true);
   });
 });

@@ -85,6 +85,7 @@ export function consistency(
 ): { key: string; pct: number; warn?: boolean }[] {
   const today = new Date();
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayKey = keyOf(today);
   const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
   const clampedEnd = end > todayMid ? todayMid : end;
 
@@ -103,7 +104,10 @@ export function consistency(
     if (owed && !rec?.rest) {
       const kept = rec?.kept ?? 0;
       const pct = Math.round((kept / FIVE_PER_DAY) * 100);
-      out.push({ key: String(cursor.getDate()), pct, warn: pct < 80 });
+      // Today is still in progress: the prayers that have not come round yet are not
+      // owed, so a partial count is not a miss. The bar still shows what has been
+      // kept so far.
+      out.push({ key: String(cursor.getDate()), pct, warn: key !== todayKey && pct < 80 });
     }
     cursor.setDate(cursor.getDate() + 1);
   }
