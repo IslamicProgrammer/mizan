@@ -1640,3 +1640,118 @@ and would catch a `Pressable` whose style array broke.
 git add mobile/src/onboarding mobile/src/app/settings/index.tsx mobile/package.json mobile/package-lock.json
 git commit -m "fix(ui): only offer the language v1 actually ships, and wire the privacy policy row"
 ```
+
+---
+
+### Task 14: Let a user take back a prayer they did not pray
+
+Added during execution, from the Task 7 review. **Sequence this before Task 8** —
+it changes the shape of a `DayRecord` on both sides, and Task 8 is what wires the
+mobile app to these endpoints. Doing it after means editing Task 8's work.
+
+Task 7's merge is monotonic: `Math.max` on `kept`, OR on `rest`. Nothing can
+ever go down. The review established this bites after a **single** sync, not two
+— once a device has sent its value for a date, that same device's later
+correction is merged against the stored value and loses. No second device needed.
+
+So a mis-tap is permanent. The app's whole premise is honest self-report about
+one's own prayers, and the garden, the streak and the statistics all read this
+number. Recording a prayer the user says they did not perform, with no way to
+take it back, is a worse failure than the one monotonic merge was defending
+against — a stale device erasing a true day loses data, but this fabricates it
+and then freezes it.
+
+Monotonic was a defensible choice under the constraint that `DayRecord` carries
+no timestamp. The constraint is cheap to remove, and `profiles.state` is
+schemaless `jsonb`, so **no database migration is needed**.
+
+**Files:**
+- Modify: `mobile/src/data/store.tsx` (`DayRecord`, and every site that writes one)
+- Modify: `server/src/sync/merge.ts`
+- Test: `server/src/__tests__/merge.test.ts`, `mobile/src/data/__tests__/store.test.ts`
+
+**Interfaces:**
+- `DayRecord` gains `updatedAt?: number` — epoch milliseconds, optional, because
+  clients already in the field will not send it.
+- `mergeHistory(local, remote)` keeps its signature.
+
+- [ ] **Step 1: Write the failing merge tests**
+
+```ts
+const older = { kept: 5, updatedAt: 1_000 };
+const newer = { kept: 4, updatedAt: 2_000 };
+
+it('lets a newer record lower the count', () => {
+  expect(mergeHistory({ '2026-10-01': newer }, { '2026-10-01': older }))
+    .toEqual({ '2026-10-01': newer });
+});
+
+it('lets a newer record clear a rest day', () => {
+  expect(mergeHistory(
+    { '2026-10-01': { kept: 0, updatedAt: 2_000 } },
+    { '2026-10-01': { kept: 0, rest: true, updatedAt: 1_000 } },
+  )).toEqual({ '2026-10-01': { kept: 0, updatedAt: 2_000 } });
+});
+
+it('falls back to the monotonic rule when either side has no timestamp', () => {
+  expect(mergeHistory({ '2026-10-01': { kept: 5 } }, { '2026-10-01': { kept: 2 } }))
+    .toEqual({ '2026-10-01': { kept: 5 } });
+});
+
+it('prefers the timestamped record when only one side has one', () => {
+  expect(mergeHistory({ '2026-10-01': { kept: 1, updatedAt: 9 } }, { '2026-10-01': { kept: 5 } }))
+    .toEqual({ '2026-10-01': { kept: 1, updatedAt: 9 } });
+});
+```
+
+That third case is the compatibility guarantee: a phone running the current
+build keeps behaving exactly as it does today. The fourth is the upgrade path —
+a client that has learned to stamp its writes is the one telling the truth,
+because it is the only one that can express a correction at all.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `cd server && npm test -- merge`
+Expected: the first, second and fourth fail; the third already passes.
+
+- [ ] **Step 3: Change the comparator**
+
+Per date, after `sanitize`: if both sides carry `updatedAt`, the newer record
+wins **whole** — count and rest flag together, because they describe one
+statement about one day and splitting them re-creates the problem. If exactly
+one side carries it, that side wins. If neither does, keep today's
+`Math.max` / OR. Equal timestamps keep the monotonic rule, so the result does
+not depend on argument order.
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `cd server && npm test -- merge`
+Expected: PASS, including every pre-existing case — the clamp at 5 and the
+sanitize rules are unchanged.
+
+- [ ] **Step 5: Stamp the mobile writes**
+
+In `mobile/src/data/store.tsx`, add `updatedAt?: number` to `DayRecord` and set
+`Date.now()` at every site that writes one — marking a prayer, the day
+roll-over, and `repairDay`. A write that does not stamp is a write that cannot
+later be corrected, so grep for every construction of a `DayRecord` rather than
+trusting this list.
+
+- [ ] **Step 6: Test the mobile side**
+
+Assert that marking a prayer and then unmarking it leaves an `updatedAt` greater
+than the first one. Use a fake timer or inject a clock; do not sleep.
+
+- [ ] **Step 7: Gate**
+
+```bash
+cd server && npx tsc --noEmit && npm test
+cd ../mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+```
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add server/src mobile/src
+git commit -m "feat(sync): timestamp day records so a correction can win"
+```
