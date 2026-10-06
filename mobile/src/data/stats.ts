@@ -44,14 +44,27 @@ const keyOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.
  * `startedAt` or a day that hasn't happened yet out of the total without any
  * special-casing of "the future" or "before install": neither ever produced
  * a history entry to begin with.
+ *
+ * Today is the one day in `history` that is still in progress, so it cannot
+ * be charged the full five like an already-finished day — a user who has
+ * kept every prayer that has come round so far would otherwise be shown as
+ * failing the ones that simply haven't arrived yet. `owedToday` is how many
+ * of today's five prayer times have actually passed, supplied by the
+ * caller because this module stays pure and never reaches for the clock or
+ * the store itself. It defaults to zero rather than five: a caller that
+ * forgets to pass it should make today under-report, not invent a day's
+ * worth of failure. `Math.min` guards the other direction — a stale or
+ * over-large `kept` must never contribute more than the day actually owed.
  */
 export function monthTotals(
   history: History,
   month: Date,
   startedAt?: string,
+  owedToday?: number,
 ): { prayed: number; total: number } {
   const y = month.getFullYear();
   const m = month.getMonth();
+  const todayKey = keyOf(new Date());
   let prayed = 0;
   let total = 0;
   for (const [date, rec] of Object.entries(history)) {
@@ -59,8 +72,14 @@ export function monthTotals(
     if (startedAt && date < startedAt) continue; // the app wasn't installed yet
     const { y: ky, m: km } = parseKey(date);
     if (ky !== y || km !== m) continue;
-    prayed += rec.kept;
-    total += FIVE_PER_DAY;
+    if (date === todayKey) {
+      const owed = owedToday ?? 0;
+      prayed += Math.min(rec.kept, owed);
+      total += owed;
+    } else {
+      prayed += rec.kept;
+      total += FIVE_PER_DAY;
+    }
   }
   return { prayed, total };
 }

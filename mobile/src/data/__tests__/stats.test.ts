@@ -22,6 +22,45 @@ describe('monthTotals', () => {
     expect(monthTotals({}, new Date('2026-10-15'), undefined))
       .toEqual({ prayed: 0, total: 0 });
   });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('charges today only for the prayers that have come round, not all five', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-02T06:00:00Z'));
+    const history = { '2026-10-01': { kept: 5 }, '2026-10-02': { kept: 0 } };
+    expect(monthTotals(history, new Date('2026-10-02'), '2026-10-01', 1))
+      .toEqual({ prayed: 5, total: 6 });
+  });
+
+  it("gives full credit when today's single due prayer is kept", () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-02T06:00:00Z'));
+    const history = { '2026-10-01': { kept: 5 }, '2026-10-02': { kept: 1 } };
+    expect(monthTotals(history, new Date('2026-10-02'), '2026-10-01', 1))
+      .toEqual({ prayed: 6, total: 6 });
+  });
+
+  it('omitting owedToday contributes nothing for today, not a full five', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-02T06:00:00Z'));
+    const history = { '2026-10-01': { kept: 5 }, '2026-10-02': { kept: 0 } };
+    expect(monthTotals(history, new Date('2026-10-02'), '2026-10-01'))
+      .toEqual({ prayed: 5, total: 5 });
+  });
+
+  it('never lets a stale kept count exceed what today actually owed', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-02T06:00:00Z'));
+    const history = { '2026-10-02': { kept: 5 } };
+    expect(monthTotals(history, new Date('2026-10-02'), '2026-10-02', 2))
+      .toEqual({ prayed: 2, total: 2 });
+  });
+
+  it('a live cycle-mode rest day owes nothing toward the total', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-02T06:00:00Z'));
+    const history = { '2026-10-02': { kept: 0, rest: true as const } };
+    expect(monthTotals(history, new Date('2026-10-02'), '2026-10-02', 1))
+      .toEqual({ prayed: 0, total: 0 });
+  });
 });
 
 describe('longestStreak', () => {

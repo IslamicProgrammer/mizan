@@ -253,16 +253,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<Store>(() => {
     const keptToday = keptIn(state.marks);
 
-    const recordFor = (date: string, today: boolean): DayRecord =>
-      today
-        ? // Today isn't written into `history` until roll-over, so its own
-          // `updatedAt` has to come from `marksUpdatedAt` instead - the
-          // timestamp of the last `setMark` - or a mis-tap corrected before
-          // midnight would carry no timestamp at all.
-          (state.marksUpdatedAt !== undefined
-            ? { kept: keptToday, updatedAt: state.marksUpdatedAt }
-            : { kept: keptToday })
-        : (state.history[date] ?? { kept: 0 });
+    const recordFor = (date: string, today: boolean): DayRecord => {
+      if (!today) return state.history[date] ?? { kept: 0 };
+      // Today isn't written into `history` until roll-over, so its own
+      // `updatedAt` has to come from `marksUpdatedAt` instead - the
+      // timestamp of the last `setMark` - or a mis-tap corrected before
+      // midnight would carry no timestamp at all.
+      const updatedAt = state.marksUpdatedAt;
+      // Cycle mode must be read live, not only at midnight: `rollOver` is
+      // the only place that ever set `rest: true` before this, so for the
+      // whole of a rest day the live "today" record still claimed a full
+      // day's quota was owed. This is the same test `rollOver` applies when
+      // the day ends — one source of truth for "is today a rest day",
+      // whether the day is still open or already archived.
+      if (state.settings.cycleMode) {
+        return updatedAt !== undefined
+          ? { kept: keptToday, rest: true, updatedAt }
+          : { kept: keptToday, rest: true };
+      }
+      return updatedAt !== undefined ? { kept: keptToday, updatedAt } : { kept: keptToday };
+    };
 
     const recentDays = (n: number) => {
       const out: { date: string; rec: DayRecord; today: boolean }[] = [];
@@ -305,7 +315,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setAnswers: (answers) => setState((s) => ({ ...s, answers })),
       setTasbih: (tasbih) => setState((s) => ({ ...s, tasbih })),
       setQaza: (id, n) =>
-        setState((s) => ({ ...s, qaza: { ...s.qaza, [id]: Math.max(0, n) } })),
+        setState((s) => ({
+          ...s,
+          // NaN and a fractional count are both meaningless for a number of
+          // prayers owed; falling through to 0 keeps this one expression
+          // rather than a second guard no caller can reach today.
+          qaza: { ...s.qaza, [id]: Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0 },
+        })),
       repairDay: (date) =>
         setState((s) => {
           const cur = s.history[date] ?? { kept: 0 };

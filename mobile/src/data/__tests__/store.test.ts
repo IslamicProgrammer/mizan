@@ -160,4 +160,14 @@ describe("recordFor's today branch", () => {
     expect(todayRecord).toEqual({ kept: 0 });
     expect(todayRecord.updatedAt).toBeUndefined();
   });
+
+  it('marks the live today as a rest day under cycle mode, not just at roll-over', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().patchSettings({ cycleMode: true });
+    });
+
+    expect(store.current().recentDays(1)[0]!.rec.rest).toBe(true);
+  });
 });

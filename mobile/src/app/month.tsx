@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Screen, Tiles } from '../components/ui';
-import { monthYear } from '../data/prayer';
+import { FIVE, monthYear, timesFor } from '../data/prayer';
 import { monthTotals } from '../data/stats';
 import { useStore } from '../data/store';
 import { color, font, layout, lift, size } from '../design/tokens';
@@ -15,7 +15,7 @@ const DAYS = ['D', 'S', 'C', 'P', 'J', 'Sh', 'Y'];
  * reads at a glance without needing a legend for every shade.
  */
 export default function Month() {
-  const { history, startedAt, streak, recentDays } = useStore();
+  const { history, startedAt, streak, recentDays, settings } = useStore();
 
   const now = new Date();
   const year = now.getFullYear();
@@ -46,7 +46,13 @@ export default function Month() {
     return rec.kept;
   };
 
-  const { prayed, total } = monthTotals(historyWithToday, now, startedAt);
+  // Today cannot owe a prayer whose time hasn't come round yet — only the
+  // slots already passed count toward the day's quota, which is what keeps
+  // a perfect day one from reading as a failure before the day is over.
+  const owedToday = timesFor(now, settings.madhhab).filter(
+    (s) => FIVE.includes(s.id) && s.at <= now,
+  ).length;
+  const { prayed, total } = monthTotals(historyWithToday, now, startedAt, owedToday);
   const pct = total > 0 ? Math.round((prayed / total) * 100) : 0;
 
   return (
