@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { verifyToken } from '../auth/token.js';
 import { pool } from '../db.js';
-import { mergeHistory, type History } from '../sync/merge.js';
+import { mergeHistoryWithDrops, type History } from '../sync/merge.js';
 
 const Body = z.object({ state: z.record(z.string(), z.unknown()) });
 
@@ -52,29 +52,48 @@ export async function profileRoutes(app: FastifyInstance) {
     const parsed = Body.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'state required' });
 
-    const { rows } = await pool.query<{ state: Record<string, unknown> }>(
-      'select state from profiles where user_id = $1',
-      [userId],
-    );
-    const remote = rows[0]?.state ?? {};
     const incoming = parsed.data.state;
 
-    // Non-history fields are simple last-write-wins: the merge rule exists
-    // for prayer history specifically, because that is the data a stale
-    // device could otherwise erase. Everything else in `state` is whatever
-    // the calling device just saved, so it overwrites remote as a normal
-    // write would.
-    const merged: Record<string, unknown> = {
-      ...remote,
-      ...incoming,
-      history: mergeHistory(historyOf(incoming), historyOf(remote)),
-    };
+    // The read, the merge, and the write must be one atomic unit: this
+    // handler is the reason the merge lives on the server rather than on
+    // each device, and without the transaction two concurrent syncs could
+    // both read the same pre-merge row, compute independent merges, and
+    // have the second write silently discard the first.
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      // FOR UPDATE makes the second concurrent sync wait for the first to
+      // commit, so it merges against the result rather than against a row
+      // that is already stale by the time it writes. Every query below must
+      // go through `client`, not `pool` — a query on `pool` takes a
+      // different connection and would silently escape this lock.
+      const { rows } = await client.query<{ state: Record<string, unknown> }>(
+        'select state from profiles where user_id = $1 for update',
+        [userId],
+      );
+      const remote = rows[0]?.state ?? {};
 
-    await pool.query(
-      `insert into profiles (user_id, state, updated_at) values ($1, $2, now())
-       on conflict (user_id) do update set state = excluded.state, updated_at = now()`,
-      [userId, merged],
-    );
-    return { state: merged };
+      const { history, dropped } = mergeHistoryWithDrops(historyOf(incoming), historyOf(remote));
+
+      // Non-history fields are simple last-write-wins: the merge rule exists
+      // for prayer history specifically, because that is the data a stale
+      // device could otherwise erase. Everything else in `state` is whatever
+      // the calling device just saved, so it overwrites remote as a normal
+      // write would.
+      const merged: Record<string, unknown> = { ...remote, ...incoming, history };
+
+      await client.query(
+        `insert into profiles (user_id, state, updated_at) values ($1, $2, now())
+         on conflict (user_id) do update set state = excluded.state, updated_at = now()`,
+        [userId, merged],
+      );
+      await client.query('commit');
+      return { state: merged, dropped };
+    } catch (e) {
+      await client.query('rollback').catch(() => {});
+      throw e;
+    } finally {
+      client.release();
+    }
   });
 }

@@ -1,6 +1,14 @@
 export type DayRecord = { kept: number; rest?: boolean };
 export type History = Record<string, DayRecord>;
 
+/**
+ * Five daily prayers, so no honest day exceeds it. The ceiling matters because
+ * the merge takes the higher of two counts: without it, one client sending an
+ * absurd number writes a value no later sync can ever bring back down, and the
+ * garden and streak both read it as truth.
+ */
+const MAX_KEPT = 5;
+
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -35,15 +43,25 @@ function isDayRecord(value: unknown): value is DayRecord {
  * record, before either side is allowed near the merge. A garbage key (stray
  * free text, "__proto__", an object instead of a string) is not a day of
  * prayer history to preserve — letting it survive the merge would make it a
- * permanent part of the one record both devices trust.
+ * permanent part of the one record both devices trust. The keys it rejects
+ * are returned too, so a caller can tell the client what was thrown away
+ * instead of leaving it to guess why its data came back different.
  */
-function sanitize(history: History): History {
+function sanitize(history: History): { history: History; dropped: string[] } {
   const out: History = {};
+  const dropped: string[] = [];
   for (const [key, value] of Object.entries(history)) {
-    if (!isValidDateKey(key) || !isDayRecord(value)) continue;
-    out[key] = value.rest !== undefined ? { kept: value.kept, rest: value.rest } : { kept: value.kept };
+    if (!isValidDateKey(key) || !isDayRecord(value)) {
+      dropped.push(key);
+      continue;
+    }
+    // Floor and clamp before the value is allowed to touch the merge: a
+    // fractional count ("kept: 2.5") is not a number of prayers, and an
+    // out-of-range one is handled by MAX_KEPT above.
+    const kept = Math.min(Math.floor(value.kept), MAX_KEPT);
+    out[key] = value.rest !== undefined ? { kept, rest: value.rest } : { kept };
   }
-  return out;
+  return { history: out, dropped };
 }
 
 /**
@@ -59,10 +77,20 @@ function sanitize(history: History): History {
  * real prayer history in it to lose.
  */
 export function mergeHistory(local: History, remote: History): History {
+  return mergeHistoryWithDrops(local, remote).history;
+}
+
+/**
+ * Same merge as `mergeHistory`, plus the keys either side lost to `sanitize`.
+ * A separate function rather than widening `mergeHistory`'s return shape,
+ * because callers that only want the merged history (and existing callers of
+ * this exact signature) shouldn't have to unwrap a wrapper they don't need.
+ */
+export function mergeHistoryWithDrops(local: History, remote: History): { history: History; dropped: string[] } {
   const l = sanitize(local);
   const r = sanitize(remote);
-  const out: History = { ...r };
-  for (const [date, lRec] of Object.entries(l)) {
+  const out: History = { ...r.history };
+  for (const [date, lRec] of Object.entries(l.history)) {
     const rRec = out[date];
     if (!rRec) {
       out[date] = lRec;
@@ -71,5 +99,6 @@ export function mergeHistory(local: History, remote: History): History {
     const kept = Math.max(lRec.kept, rRec.kept);
     out[date] = lRec.rest || rRec.rest ? { kept, rest: true } : { kept };
   }
-  return out;
+  const dropped = [...new Set([...l.dropped, ...r.dropped])];
+  return { history: out, dropped };
 }

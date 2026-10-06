@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { mergeHistory, type History } from '../sync/merge.js';
+import { mergeHistory, mergeHistoryWithDrops, type History } from '../sync/merge.js';
 
 describe('mergeHistory', () => {
   it('keeps days present on only one side', () => {
@@ -50,5 +50,38 @@ describe('mergeHistory', () => {
   it('drops a value that is not a well-formed day record', () => {
     const remote = { '2026-10-01': { kept: 'five' } } as unknown as History;
     expect(mergeHistory({}, remote)).toEqual({});
+  });
+
+  it('clamps an absurd kept value to the five-prayer ceiling, permanently', () => {
+    // The whole point: Math.max never comes back down, so if the clamp
+    // didn't apply before the max, 999999 would win forever. A later
+    // *honest* sync of 3 must still land on 5, not get re-poisoned by
+    // whatever is already stored.
+    const poisoned = mergeHistory({ '2026-10-01': { kept: 999999 } }, { '2026-10-01': { kept: 3 } });
+    expect(poisoned).toEqual({ '2026-10-01': { kept: 5 } });
+
+    const corrected = mergeHistory({ '2026-10-01': { kept: 3 } }, poisoned);
+    expect(corrected).toEqual({ '2026-10-01': { kept: 5 } });
+  });
+
+  it('passes kept: 5 through untouched at the boundary', () => {
+    expect(mergeHistory({ '2026-10-01': { kept: 5 } }, {})).toEqual({ '2026-10-01': { kept: 5 } });
+  });
+
+  it('floors a fractional kept value instead of treating it as a count', () => {
+    expect(mergeHistory({ '2026-10-01': { kept: 2.5 } }, {})).toEqual({ '2026-10-01': { kept: 2 } });
+  });
+
+  it('reports dropped keys from either side without touching mergeHistory itself', () => {
+    const local = { 'not-a-date': { kept: 9 } } as unknown as History;
+    const remote = { '2026-10-01': { kept: 'five' } } as unknown as History;
+    expect(mergeHistoryWithDrops(local, remote)).toEqual({ history: {}, dropped: ['not-a-date', '2026-10-01'] });
+  });
+
+  it('reports an empty dropped list when nothing was rejected', () => {
+    expect(mergeHistoryWithDrops({ '2026-10-01': { kept: 1 } }, {})).toEqual({
+      history: { '2026-10-01': { kept: 1 } },
+      dropped: [],
+    });
   });
 });
