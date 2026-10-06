@@ -3,14 +3,9 @@ import { join } from 'node:path';
 import { Pool } from 'pg';
 
 import { ENV } from './env.js';
+import { pendingMigrations } from './migrations.js';
 
 export const pool = new Pool({ connectionString: ENV.databaseUrl });
-
-/** Pure so it can be tested without a database. */
-export function pendingMigrations(all: string[], applied: string[]): string[] {
-  const done = new Set(applied);
-  return all.filter((f) => !done.has(f)).sort();
-}
 
 export async function migrate(dir = join(import.meta.dirname, '../migrations')): Promise<void> {
   await pool.query(
@@ -29,7 +24,9 @@ export async function migrate(dir = join(import.meta.dirname, '../migrations')):
       await client.query('commit');
       console.log(`migrated ${name}`);
     } catch (e) {
-      await client.query('rollback');
+      // A dead connection makes the rollback throw too. Let the original failure
+      // be the one that propagates; the transaction is already lost either way.
+      await client.query('rollback').catch(() => {});
       throw e;
     } finally {
       client.release();

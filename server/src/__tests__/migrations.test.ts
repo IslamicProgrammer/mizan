@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pendingMigrations } from '../db.js';
+import { pendingMigrations } from '../migrations.js';
 
 describe('pendingMigrations', () => {
   it('returns every file when none have been applied', () => {
