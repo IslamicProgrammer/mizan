@@ -958,6 +958,31 @@ git add server && git commit -m "feat(server): profile state endpoints with accu
 
 ### Task 8: The app talks to the server
 
+> **Amended during execution, from the Task 14 review — this is load-bearing.**
+> Today's date is **never** a key in `state.history`. `store.tsx` derives today's
+> record from the `marks` array and only archives it into `history` at midnight
+> roll-over. So a client that sends `state.history` unmodified never sends today
+> at all, and the whole `updatedAt` correction mechanism Task 14 built is inert
+> for the one day it matters most — a mis-tap is noticed the same day, not next
+> week.
+>
+> When building the `PUT /profile` body, **synthesize today's entry** rather than
+> forwarding `state.history` as-is:
+> `{ ...state.history, [ymd(new Date())]: { kept: keptToday, updatedAt: marksUpdatedAt } }`,
+> omitting `updatedAt` entirely when `marksUpdatedAt` is `undefined` (the
+> `exactOptionalPropertyTypes` rule — an explicit `undefined` is a different
+> shape).
+>
+> Note also that `PUT /profile` merges `history` through `mergeHistoryWithDrops`
+> but every **other** top-level field, including `marks`, is plain
+> last-write-wins. Two devices editing today before either rolls over will
+> clobber each other's `marks` regardless of timestamps; synthesizing today into
+> `history` is what gives that case a real merge.
+>
+> The response carries `dropped: string[]` beside `state`. It is de-duplicated
+> via a `Set`, so a key rejected on both the local and the remote side appears
+> once, not twice.
+
 **Files:**
 - Create: `mobile/src/data/api.ts`, `mobile/src/data/auth.ts`, `mobile/src/app/(auth)/sign-in.tsx`, `mobile/src/app/(auth)/_layout.tsx`
 - Modify: `mobile/src/app/index.tsx`, `mobile/src/data/env.ts`, `mobile/.env.example`, `mobile/scripts/smoke.mjs`
