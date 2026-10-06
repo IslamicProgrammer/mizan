@@ -67,6 +67,13 @@ type State = {
   marksUpdatedAt?: number;
   /** past days, keyed YYYY-MM-DD. Today is derived from `marks`, not stored. */
   history: Record<string, DayRecord>;
+  /**
+   * The `ymd()` date the app first hydrated on this install, set once when it
+   * is found absent and never moved afterward. A day before this date is not
+   * a day the user failed to pray - it is a day the app was not installed
+   * yet, and the garden and streak both need to tell the two apart.
+   */
+  startedAt?: string;
 };
 
 const DEFAULTS: State = {
@@ -105,6 +112,15 @@ const keptIn = (m: Record<PrayerId, PrayerMark>) =>
 function rollOver(state: State): State {
   const today = ymd(new Date());
   if (state.marksDate === today) return state;
+  // The real moment this day was last edited, not the moment roll-over
+  // happens to run. Roll-over fires on hydrate and on every foreground, so
+  // stamping `Date.now()` here would claim an untouched day was last written
+  // whenever the app happened to be reopened — two days later, say — letting
+  // that stale record beat a genuine, earlier correction from another
+  // device. Falling back to `Date.now()` only when there is no edit time at
+  // all keeps that fallback for the one case it is honest for: a day with no
+  // recorded edit time to carry forward.
+  const updatedAt = state.marksUpdatedAt ?? Date.now();
   return {
     ...state,
     history: {
@@ -113,33 +129,12 @@ function rollOver(state: State): State {
       // on write, same as any other history entry, so a later repair to
       // this now-archived day can still win against it.
       [state.marksDate]: state.settings.cycleMode
-        ? { kept: 0, rest: true, updatedAt: Date.now() }
-        : { kept: keptIn(state.marks), updatedAt: Date.now() },
+        ? { kept: 0, rest: true, updatedAt }
+        : { kept: keptIn(state.marks), updatedAt },
     },
     marks: { ...EMPTY_MARKS },
     marksDate: today,
   };
-}
-
-/**
- * MOCK: a fortnight of plausible history so the garden has something to show.
- * Deliberately imperfect — two missed days and a rest day, because a garden
- * that is all flowers teaches nothing about how the screen behaves.
- */
-function seedHistory(): Record<string, DayRecord> {
-  const pattern: DayRecord[] = [
-    { kept: 5 }, { kept: 5 }, { kept: 4 }, { kept: 5 }, { kept: 3 },
-    { kept: 0 }, { kept: 5 }, { kept: 5 }, { kept: 2 }, { kept: 5 },
-    { kept: 0, rest: true }, { kept: 0, rest: true }, { kept: 5 }, { kept: 4 },
-  ];
-  const out: Record<string, DayRecord> = {};
-  const d = new Date();
-  for (let i = 1; i <= pattern.length; i += 1) {
-    const day = new Date(d);
-    day.setDate(day.getDate() - i);
-    out[ymd(day)] = pattern[i - 1];
-  }
-  return out;
 }
 
 /* ------------------------------------------------------------------- MOCK */
@@ -237,13 +232,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const saved = raw ? JSON.parse(raw) : null;
         setState((s) => {
           const next = { ...s, ...(saved ?? {}) };
-          // Seed when there is no history at all — a fresh install, or an
-          // install saved before the garden stored any. Without this the garden
-          // shows every past day as missed, which is both wrong and dispiriting.
-          if (!next.history || Object.keys(next.history).length === 0) {
-            next.history = seedHistory();
-          }
           if (!next.marksDate) next.marksDate = ymd(new Date());
+          // Set once, the first time it is found missing — a fresh install,
+          // or an install that predates this field. Everything before today
+          // is then "the app wasn't here yet", not "missed", which is the
+          // honest fix for the blank history a fresh install starts with
+          // (an invented fourteen days was the dishonest one).
+          if (!next.startedAt) next.startedAt = ymd(new Date());
           return rollOver(next);
         });
       })
@@ -296,8 +291,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     for (let i = 0; i < 400; i += 1) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const rec = recordFor(ymd(d), i === 0);
-      if (rec.rest) continue;
+      const dateKey = ymd(d);
+      const rec = recordFor(dateKey, i === 0);
+      // A day before the user started is not a day they broke the streak on
+      // — the app was not installed yet, so it is skipped exactly like a
+      // rest day instead of ending the count.
+      const beforeStart = state.startedAt !== undefined && dateKey < state.startedAt;
+      if (rec.rest || beforeStart) continue;
       if (rec.kept > 0) streak += 1;
       // today counting zero just means the day is not over yet
       else if (i > 0) break;
@@ -323,7 +323,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           };
         }),
       finishOnboarding: () => setState((s) => ({ ...s, onboarded: true })),
-      reset: () => setState({ ...DEFAULTS, history: seedHistory() }),
+      // Wipes real history rather than replacing it with invented days.
+      // `startedAt` is set to today because a fresh start has no past in
+      // this app to judge — the same honest rule a first install gets.
+      reset: () => setState({ ...DEFAULTS, startedAt: ymd(new Date()) }),
     };
   }, [state]);
 

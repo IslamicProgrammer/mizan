@@ -143,13 +143,20 @@ function Stage({
 function Plot({
   rec,
   today,
+  notStarted,
   onRepair,
 }: {
   rec: DayRecord;
   today: boolean;
+  /** This date is before the app was installed — not a day the user missed. */
+  notStarted?: boolean;
   onRepair?: () => void;
 }) {
-  const missed = !rec.rest && rec.kept === 0 && !today;
+  // A day before the app existed on this device is neither grown nor
+  // missed — it gets the same bare-soil plot as any other empty day, just
+  // without the repair badge or tap target, both gated on `missed` below,
+  // that would imply there was ever something to have done about it.
+  const missed = !notStarted && !rec.rest && rec.kept === 0 && !today;
   const body = (
     <View style={[s.plot, today && s.plotToday, rec.rest && s.plotRest]}>
       {rec.rest ? (
@@ -183,7 +190,7 @@ function Plot({
 /* ------------------------------------------------------------------- screen */
 
 export default function Garden() {
-  const { keptToday, recentDays, repairDay, streak, settings } = useStore();
+  const { keptToday, recentDays, repairDay, streak, settings, startedAt } = useStore();
   const days = useMemo(() => recentDays(15), [recentDays]);
 
   const repair = useCallback(
@@ -238,7 +245,12 @@ export default function Garden() {
       >
         {days.map((d) => (
           <View key={d.date} style={s.plotWrap}>
-            <Plot rec={d.rec} today={d.today} onRepair={() => repair(d.date)} />
+            <Plot
+              rec={d.rec}
+              today={d.today}
+              notStarted={startedAt !== undefined && d.date < startedAt}
+              onRepair={() => repair(d.date)}
+            />
             <Text style={[s.plotDay, d.today && s.plotDayOn]}>
               {d.today ? 'Bugun' : d.date.slice(8)}
             </Text>

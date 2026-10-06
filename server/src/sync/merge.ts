@@ -73,7 +73,13 @@ function sanitize(history: History): { history: History; dropped: string[] } {
     const kept = Math.min(Math.floor(value.kept), MAX_KEPT);
     const rec: DayRecord = { kept };
     if (value.rest !== undefined) rec.rest = value.rest;
-    if (value.updatedAt !== undefined) rec.updatedAt = value.updatedAt;
+    if (value.updatedAt !== undefined) {
+      // A timestamp from the future would win every merge forever, so it is pinned to
+      // now — the same reason `kept` is capped at five. A clock that is merely a
+      // little fast still works; one claiming the year 9999 does not get to freeze a
+      // day permanently.
+      rec.updatedAt = Math.min(value.updatedAt, Date.now());
+    }
     out[key] = rec;
   }
   return { history: out, dropped };
@@ -116,6 +122,18 @@ export function mergeHistoryWithDrops(local: History, remote: History): { histor
 }
 
 /**
+ * Client timestamps are an honest trade-off, not a complete solution. A
+ * device whose clock runs fast always wins a correction it has no special
+ * claim to, and a device whose clock runs backwards can lose its own later,
+ * real edit to its own earlier write — there is no way to tell "the clock is
+ * wrong" from "the write really did happen first" using only what the client
+ * reports. That is acceptable for v1 because the alternative (no correction
+ * at all, pure monotonic accumulation) is worse, but it is not free, and the
+ * fix — a server-assigned sequence number instead of a client-reported time —
+ * is not implemented here. Written down so the next person debugging "my
+ * correction didn't stick" starts from this trade-off instead of
+ * rediscovering it from a bug report.
+ *
  * The per-date comparator. A record with a timestamp is a device telling us
  * "this is the true state of this day as of this moment" — count and rest
  * flag together, as one statement, not two fields to reconcile separately.

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Label, List, Row, Screen, Toggle } from '../../components/ui';
 import { MOCK, useStore } from '../../data/store';
@@ -75,7 +75,31 @@ export default function Settings() {
 
       <View style={s.gap} />
       <List>
-        <Row title="Onboardingni qayta ko'rish" onPress={() => { reset(); router.replace('/onboarding'); }} />
+        {/* A plain re-navigation, no state change — replaying the
+            onboarding screens is not the same action as erasing history,
+            and conflating the two is what let this row destroy a real
+            user's prayer record with no confirmation. */}
+        <Row title="Onboardingni qayta ko'rish" onPress={() => router.replace('/onboarding')} />
+        <Row
+          title="Hammasini o'chirish va qaytadan boshlash"
+          onPress={() =>
+            Alert.alert(
+              "Hammasi o'chiriladi",
+              "Namoz tarixingiz, bog'ingiz va sozlamalaringiz butunlay o'chadi. Buni qaytarib bo'lmaydi.",
+              [
+                { text: 'Bekor qilish', style: 'cancel' },
+                {
+                  text: "O'chirish",
+                  style: 'destructive',
+                  onPress: () => {
+                    reset();
+                    router.replace('/onboarding');
+                  },
+                },
+              ],
+            )
+          }
+        />
       </List>
 
       <Text style={s.version}>Mizan 0.1.0 · demo</Text>

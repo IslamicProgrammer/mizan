@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { mergeHistory, mergeHistoryWithDrops, type History } from '../sync/merge.js';
 
@@ -121,5 +121,32 @@ describe('mergeHistory with updatedAt', () => {
     const expected = { '2026-10-01': { kept: 4, rest: true, updatedAt: 5_000 } };
     expect(mergeHistory(a, b)).toEqual(expected);
     expect(mergeHistory(b, a)).toEqual(expected);
+  });
+});
+
+describe('sanitize clamps updatedAt to now', () => {
+  it('pins a year-9999 timestamp to now instead of letting it win merges forever', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T00:00:00Z'));
+    const farFuture = Date.UTC(9999, 0, 1);
+    const poisoned = mergeHistory({ '2026-10-01': { kept: 1, updatedAt: farFuture } }, {});
+    expect(poisoned).toEqual({ '2026-10-01': { kept: 1, updatedAt: Date.now() } });
+
+    // Advance real time and apply an honest, later correction. It must win -
+    // which it never could if the poisoned record had kept its claimed
+    // year-9999 stamp instead of being clamped.
+    vi.setSystemTime(new Date('2026-10-02T00:00:00Z'));
+    const corrected = mergeHistory({ '2026-10-01': { kept: 4, updatedAt: Date.now() } }, poisoned);
+    expect(corrected).toEqual({ '2026-10-01': { kept: 4, updatedAt: Date.now() } });
+    vi.useRealTimers();
+  });
+
+  it('still works for a clock that is only slightly ahead', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T00:00:00Z'));
+    const slightlyAhead = Date.now() + 60_000; // a clock a minute fast, not an attack
+    const result = mergeHistory({ '2026-10-01': { kept: 3, updatedAt: slightlyAhead } }, {});
+    expect(result).toEqual({ '2026-10-01': { kept: 3, updatedAt: Date.now() } });
+    vi.useRealTimers();
   });
 });
