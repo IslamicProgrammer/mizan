@@ -2171,3 +2171,121 @@ cd ../mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
 git add server/src mobile/src
 git commit -m "feat(stats): record which prayers were kept, so the chart can tell you"
 ```
+
+---
+
+### Task 18: Make the cycle-mode privacy promise true
+
+Added during execution, from a security review of `mobile/src/data/store.tsx`.
+
+`mobile/src/app/settings/cycle.tsx:82` tells the user, about her menstrual
+history:
+
+> Bu ma'lumot faqat telefoningizda saqlanadi. Serverga yuborilmaydi va hech kim
+> ko'ra olmaydi.
+
+*(This information is stored only on your phone. It is not sent to a server and
+nobody can see it.)*
+
+Both halves are currently false.
+
+**"Not sent to a server."** `mobile/app.json` sets no `allowBackup`, so Android
+Auto Backup is enabled by default. It uploads the app's data directory —
+including the AsyncStorage blob that holds `cycles` — to the user's Google
+Drive. `stateForSync` cannot prevent this, because the path does not go through
+the app at all.
+
+**"Nobody can see it."** `store.tsx:249` persists the whole state with
+`AsyncStorage.setItem(KEY, JSON.stringify(state))`. AsyncStorage is plaintext in
+the app's private directory: readable on a rooted device, and via `adb` on a
+debuggable build.
+
+The right response is to make the sentence true, not to soften it. It is a good
+promise about data the app only holds so it can avoid scolding a woman for
+prayers she was never expected to make.
+
+**Files:**
+- Modify: `mobile/app.json` (`android.allowBackup`)
+- Modify: `mobile/src/data/store.tsx` (move `cycles` to secure storage)
+- Test: `mobile/src/data/__tests__/store.test.ts`
+
+- [ ] **Step 1: Turn off Auto Backup**
+
+```json
+"android": {
+  "allowBackup": false
+}
+```
+
+This is a deliberate trade: a user moving to a new phone will not get their
+prayer history back from a Google Drive backup. That is acceptable because
+server-side profile sync (Tasks 6-8) is this app's actual backup mechanism, and
+an account is required anyway. Record that reasoning in the plan rather than
+only in the diff, because a later contributor will otherwise read
+`allowBackup: false` as an oversight and remove it.
+
+- [ ] **Step 2: Install secure storage**
+
+```bash
+cd mobile && npx expo install expo-secure-store
+```
+
+Never `npm install` — only `expo install` resolves an SDK-57-compatible version.
+`expo-secure-store` is backed by the Android Keystore, and its data is not part
+of Auto Backup even if backup is later re-enabled, so the guarantee does not
+rest on one config key staying put.
+
+- [ ] **Step 3: Write the failing test**
+
+```ts
+it('keeps cycles out of the AsyncStorage blob entirely', async () => {
+  // enable cycle mode, let the debounced write run, then read the raw
+  // AsyncStorage value and assert the string "cycles" does not appear in it
+});
+```
+
+Assert on the **raw persisted string**, not on the parsed object. A test that
+parses and checks a key would pass even if the dates were serialized under
+another name.
+
+- [ ] **Step 4: Split the persistence**
+
+`cycles` moves out of the AsyncStorage payload and into
+`SecureStore.setItemAsync`. Keep it in the same in-memory `State` so every
+screen and `stateForSync` work unchanged — only the write path differs. On
+hydrate, read both and merge.
+
+`SecureStore` is unavailable on web, which this project's `npm run smoke`
+exercises. Fall back to keeping `cycles` in memory only when
+`SecureStore.isAvailableAsync()` is false, rather than silently falling back to
+AsyncStorage — losing the history on web reload is a far better outcome than
+writing health data to the exact store this task is removing it from.
+
+- [ ] **Step 5: Run the tests**
+
+Run: `cd mobile && npx jest`
+Expected: PASS, including the raw-string assertion.
+
+- [ ] **Step 6: Check the promise holds end to end**
+
+Confirm and report: the raw AsyncStorage string contains no cycle dates;
+`stateForSync` still drops `cycles`; `reset()` clears the secure entry as well
+as the AsyncStorage one — a user wiping their data must not leave her periods
+behind in the Keystore.
+
+- [ ] **Step 7: Gate**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+npx expo config --type public >/dev/null
+```
+
+The last command catches a malformed `app.json`, which otherwise fails for the
+first time during an EAS build.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add mobile/src mobile/app.json mobile/package.json mobile/package-lock.json
+git commit -m "fix(privacy): keep cycle history out of AsyncStorage and off Google Drive"
+```
