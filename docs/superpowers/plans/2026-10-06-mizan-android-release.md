@@ -1780,3 +1780,255 @@ cd ../mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
 git add server/src mobile/src
 git commit -m "feat(sync): timestamp day records so a correction can win"
 ```
+
+---
+
+### Task 15: Real numbers on the screens that already have the data
+
+Added during execution. `mobile/src/data/store.tsx` exports a `MOCK` constant
+that ten screens read as if it were the user's own record: a 17-day streak,
+143/157 prayers, per-prayer consistency, an outstanding qaza count, a name and
+join date, charity totals and focus minutes. `seedHistory` was removed as a
+release blocker for exactly this reason; `MOCK` is the same defect about ten
+times larger. The app asks people to be honest about their prayers and then
+shows them numbers nobody earned.
+
+This task covers the screens whose real data **already exists locally** in
+`state.history`. Task 16 covers the rest.
+
+One of them is not a swap. **Qaza is not stored anywhere** — `qaza.tsx` reads
+`MOCK.qaza` into `useState`, so a user's edits are discarded the moment they
+navigate away. Outstanding make-up prayers are the whole point of that screen,
+so this task gives them real storage.
+
+**Files:**
+- Modify: `mobile/src/data/store.tsx` (add `qaza`, `setQaza`; add derived stats)
+- Modify: `mobile/src/app/stats.tsx`, `mobile/src/app/month.tsx`,
+  `mobile/src/app/qaza.tsx`, `mobile/src/app/(tabs)/timetable.tsx`
+- Test: `mobile/src/data/__tests__/stats.test.ts`
+
+**Interfaces:**
+- Consumes: `history`, `startedAt`, `streak`, `recentDays` from the store.
+- Produces, in a new `mobile/src/data/stats.ts` so the arithmetic is testable
+  without React:
+  - `monthTotals(history, month: Date, startedAt?: string): { prayed: number; total: number }`
+  - `consistency(history, from: Date, to: Date): { key: string; pct: number; warn?: boolean }[]`
+  - `longestStreak(history): number`
+- Produces on the store: `qaza: Record<PrayerId, number>`,
+  `setQaza(id: PrayerId, n: number): void`.
+
+- [ ] **Step 1: Write the failing stats tests**
+
+```ts
+import { consistency, longestStreak, monthTotals } from '../stats';
+
+const h = {
+  '2026-10-01': { kept: 5 },
+  '2026-10-02': { kept: 3 },
+  '2026-10-03': { kept: 0, rest: true },
+};
+
+describe('monthTotals', () => {
+  it('counts only days from startedAt onward', () => {
+    expect(monthTotals(h, new Date('2026-10-15'), '2026-10-02'))
+      .toEqual({ prayed: 3, total: 5 });
+  });
+
+  it('excludes rest days from the denominator', () => {
+    // 2026-10-03 is a rest day: it owes nothing and cannot be missed
+    expect(monthTotals(h, new Date('2026-10-15'), '2026-10-01'))
+      .toEqual({ prayed: 8, total: 10 });
+  });
+
+  it('returns zeroes rather than NaN for an empty history', () => {
+    expect(monthTotals({}, new Date('2026-10-15'), undefined))
+      .toEqual({ prayed: 0, total: 0 });
+  });
+});
+
+describe('longestStreak', () => {
+  it('does not let a rest day break the run', () => {
+    expect(longestStreak(h)).toBe(3);
+  });
+});
+```
+
+The third case is the one that will actually happen: every new user has an empty
+history, and `143/157` becoming `NaN/NaN` on day one is the obvious way to get
+this wrong.
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `cd mobile && npx jest src/data/__tests__/stats.test.ts`
+Expected: FAIL — `../stats` does not exist.
+
+- [ ] **Step 3: Write `mobile/src/data/stats.ts`**
+
+Pure functions over a `History`, no React and no store import, so they are
+testable with fixtures. A rest day counts as neither prayed nor owed: it is a
+statement that nothing was due, so it must not sit in the denominator and must
+not break a streak. Days before `startedAt` are not counted at all — the app was
+not there, so the user did not miss anything.
+
+Percentages divide by the number of days that actually owed that prayer. Guard
+every division: an empty history must yield `0`, never `NaN`.
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `cd mobile && npx jest src/data/__tests__/stats.test.ts`
+Expected: PASS, 4 tests.
+
+- [ ] **Step 5: Give qaza real storage**
+
+Add to the store's state, beside `tasbih`:
+
+```ts
+qaza: Record<PrayerId, number>;
+```
+
+defaulting to every prayer at `0`, with a `setQaza(id, n)` that clamps at zero —
+a negative count of owed prayers is meaningless. Then change `qaza.tsx` to read
+and write the store instead of `useState`, so the number survives navigation.
+
+`timetable.tsx` sums `MOCK.qaza` for its total; point it at the store's.
+
+- [ ] **Step 6: Wire stats.tsx and month.tsx**
+
+Replace every `MOCK.*` read with the derived values. Where a figure has no real
+source yet — `focusMinutes` on both screens — leave the row out entirely rather
+than showing a zero that looks like a measurement; Task 16 gives focus its own
+honest treatment.
+
+A brand-new user must see a sensible screen, not a wall of zeroes pretending to
+be data. Where a section has nothing to show yet, use the existing `Empty`
+component from `components/ui.tsx` with copy in the app's voice:
+`Hali ma'lumot yo'q — birinchi namozingizni belgilang.`
+
+- [ ] **Step 7: Delete the parts of MOCK this task replaced**
+
+Remove `streak`, `longestStreak`, `monthPrayed`, `monthTotal`, `consistency`,
+`qaza` and `recentDays` from `MOCK`. Leave the rest for Task 16. If the TypeScript
+build still passes, nothing was left pointing at them.
+
+- [ ] **Step 8: Gate**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+```
+
+`npm run smoke` renders all 25 routes and is what catches a screen that now
+divides by zero on an empty store.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add mobile/src
+git commit -m "feat(stats): compute the real numbers instead of showing invented ones"
+```
+
+---
+
+### Task 16: Honest empty states where the data does not exist yet
+
+Added during execution. The second half of removing `MOCK`. These screens have
+no real source **because the feature behind them is not built**: charity totals
+need the server, blocked apps and focus minutes need Android app-blocking, and
+the profile needs the Google account from Task 8.
+
+The decision is to show honest empty states rather than hide the screens, so a
+tester sees what the app will do and that it is not pretending to have done it.
+
+**Files:**
+- Modify: `mobile/src/app/focus/index.tsx`, `focus/apps.tsx`, `focus/stats.tsx`
+- Modify: `mobile/src/app/charity/reports.tsx`, `charity/report.tsx`
+- Modify: `mobile/src/app/settings/index.tsx`, `settings/profile.tsx`
+- Modify: `mobile/src/data/store.tsx` (add `focusMinutes`; delete `MOCK`)
+- Modify: `mobile/src/app/focus/active.tsx` (bank a completed session)
+- Test: `mobile/src/data/__tests__/focus.test.ts`
+
+**Interfaces:**
+- Produces on the store: `focusMinutes: number`, `addFocusMinutes(n: number): void`.
+
+- [ ] **Step 1: Write the failing focus test**
+
+```ts
+it('banks a completed session and ignores a negative one', () => {
+  // addFocusMinutes must never let a miscomputed duration reduce the total
+});
+```
+
+Write it against the store the same way `store.test.ts` does, with fake timers.
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `cd mobile && npx jest src/data/__tests__/focus.test.ts`
+Expected: FAIL — `addFocusMinutes` does not exist.
+
+- [ ] **Step 3: Track focus minutes for real**
+
+`focus/active.tsx` already runs a countdown. Add `focusMinutes: number` to the
+state at `0`, and call `addFocusMinutes` at the point the session actually
+completes — not when it is abandoned, because an abandoned session is not focus
+time. Clamp negatives to zero.
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+- [ ] **Step 5: Empty-state the focus screens**
+
+`focus/apps.tsx` lists six invented apps with invented usage figures. The real
+list comes from `UsageStatsManager` once app-blocking exists, and the icons come
+from `packageManager.getApplicationIcon(pkg)` at runtime — **never redraw another
+company's logo**, which is why no placeholder art goes in here either.
+
+Until then the screen shows a single explanatory state: the feature needs a
+permission the app does not have yet. Copy:
+`Ilovalarni bloklash uchun ruxsat kerak. Bu funksiya tez kunda qo'shiladi.`
+
+`focus/index.tsx` counts `MOCK.apps.filter(blocked)` for its summary — show the
+real focus minutes and no app count. `focus/stats.tsx` shows real minutes, and
+`Empty` for the per-app breakdown.
+
+- [ ] **Step 6: Move the charity figures out of MOCK**
+
+`charity/reports.tsx` is already honest — it shows `$0` and says the app has not
+earned anything yet. It only needs its two values to stop coming from a constant
+named `MOCK`. Put them in `mobile/src/data/charity.ts` as named constants with a
+comment saying they are updated when a real report is published.
+
+`charity/report.tsx` renders an invented monthly breakdown. Check whether the
+screen already labels it as an example. If it does not, label it — the heading
+must say it is a worked example of what a future report will look like, not a
+report. Copy: `Namuna — kelgusi hisobot shunday ko'rinadi.`
+
+- [ ] **Step 7: Signed-out identity in settings and profile**
+
+Both screens show `MOCK.profile.name`, an initial, and a join date. There is no
+account until Task 8. Show a neutral avatar (no initial) and, in place of the
+name, a prompt: `Hisobga kirish`, with sub-copy
+`Tariximiz saqlanishi uchun hisobga kiring.` Tapping it does nothing yet —
+Task 8 wires it to Google sign-in. `settings/profile.tsx`'s prayer and focus
+figures come from the real store.
+
+Leaving a dead chevron is the defect Task 13 exists to fix, so do not add one
+here: render the prompt as a non-pressable row until Task 8.
+
+- [ ] **Step 8: Delete `MOCK` entirely**
+
+```bash
+grep -rn "MOCK" mobile/src
+```
+Expected: no matches except `MOCK_DETECT_MS` in `alarm/scan.tsx`, which is the
+Fajr scan timer and is a different thing with its own task.
+
+- [ ] **Step 9: Gate**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+```
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add mobile/src
+git commit -m "feat(ui): show honest empty states instead of invented data"
+```
