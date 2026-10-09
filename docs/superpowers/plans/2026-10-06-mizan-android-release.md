@@ -2566,12 +2566,36 @@ If usage access is not granted, the screen explains and offers the button that
 opens Settings — it does not list fabricated apps, and it does not pretend the
 feature is on. Task 16's copy stays until permission is actually granted.
 
-- [ ] **Step 4: Gate and commit**
+- [ ] **Step 4: A switch that blocks right now, for testing**
+
+Added 9 Oct 2026 at the owner's request. The reminder normally only runs during
+a focus session, which makes it almost impossible to test — you would have to
+start a session and wait. Add a switch at the top of `focus/apps.tsx`:
+
+- label: `Sinov rejimi`
+- sub: `Tanlangan ilovalar darhol bloklanadi — fokus seansini kutmasdan`
+
+When it is on, `startFocus(blocked, Number.MAX_SAFE_INTEGER)` runs immediately
+and keeps running until the switch is turned off, regardless of focus sessions
+or prayer times. When off, `stopFocus()`.
+
+Two things this must not do. It must not survive a reboot silently — persist the
+switch, but never auto-start the service on boot from it, or a forgotten test
+switch becomes a permanent background service the user cannot account for. And
+its notification text must say *why* the service is running: `Sinov rejimi faol`,
+not the normal focus-session wording, so a user who finds it in their shade can
+tell it apart from the real feature.
+
+Keep it. It is a legitimate feature in its own right — blocking apps outside a
+session is something people want — and hiding it behind a build flag would mean
+it is only ever exercised by the person who wrote it.
+
+- [ ] **Step 5: Gate and commit**
 
 ```bash
 cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
 git add mobile/src
-git commit -m "feat(focus): list the apps actually installed on the phone"
+git commit -m "feat(focus): list the real apps, and a switch to block them now"
 ```
 
 ---
