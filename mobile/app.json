@@ -46,7 +46,8 @@
           "color": "#50320F",
           "defaultChannel": "prayers"
         }
-      ]
+      ],
+      "./modules/app-watch/plugin/withAppWatch"
     ],
     "experiments": {
       "typedRoutes": true
