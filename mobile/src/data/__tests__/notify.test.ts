@@ -36,3 +36,47 @@ describe('buildSchedule', () => {
     expect(fajr?.body).toContain('10 daqiqa');
   });
 });
+
+describe('canUseNotifications', () => {
+  const load = () => {
+    let fn: () => boolean = () => false;
+    jest.isolateModules(() => {
+      // `jest.isolateModules` runs synchronously, so the module has to be
+      // pulled in with `require` — an `import` would be hoisted out of the
+      // isolated registry and would read the mock set by whichever test ran
+      // first, making all three pass or fail together.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      fn = require('../notify').canUseNotifications;
+    });
+    return fn;
+  };
+
+  afterEach(() => jest.resetModules());
+
+  it('refuses inside Expo Go, where importing the module would throw', () => {
+    jest.doMock('expo-constants', () => ({
+      __esModule: true,
+      default: { executionEnvironment: 'storeClient' },
+      ExecutionEnvironment: { StoreClient: 'storeClient', Standalone: 'standalone', Bare: 'bare' },
+    }));
+    expect(load()()).toBe(false);
+  });
+
+  it('allows it in a development build, which has the native module', () => {
+    jest.doMock('expo-constants', () => ({
+      __esModule: true,
+      default: { executionEnvironment: 'bare' },
+      ExecutionEnvironment: { StoreClient: 'storeClient', Standalone: 'standalone', Bare: 'bare' },
+    }));
+    expect(load()()).toBe(true);
+  });
+
+  it('allows it in a store build', () => {
+    jest.doMock('expo-constants', () => ({
+      __esModule: true,
+      default: { executionEnvironment: 'standalone' },
+      ExecutionEnvironment: { StoreClient: 'storeClient', Standalone: 'standalone', Bare: 'bare' },
+    }));
+    expect(load()()).toBe(true);
+  });
+});

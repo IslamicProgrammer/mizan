@@ -10,6 +10,7 @@
  * touching the notifications module at all; `syncNotifications` is the only
  * place that talks to the device.
  */
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { FIVE, PRAYER_NAMES, timesFor, type Madhhab } from './prayer';
@@ -75,8 +76,32 @@ let cached: NotificationsModule | null | undefined;
  * Notifications really do need a development build. The other twenty-four
  * screens do not, and must keep working in Expo Go while one is being set up.
  */
+/**
+ * Expo Go cannot do notifications on Android at all — Expo removed the native
+ * half in SDK 53 — and the module announces that by throwing the moment it is
+ * imported.
+ *
+ * This is checked *before* the import rather than caught after it. Catching
+ * works, in that the rejection is handled and the app survives, but the module
+ * still evaluates and throws on its way there, and React Native prints that
+ * throw as a red ERROR in the log before anything can swallow it. A developer
+ * then spends the morning chasing a crash that is not happening. Asking the
+ * question first means the module is never reached.
+ *
+ * Exported so the rule is testable without a device.
+ */
+export function canUseNotifications(): boolean {
+  return Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+}
+
 async function load(): Promise<NotificationsModule | null> {
   if (cached !== undefined) return cached;
+
+  if (!canUseNotifications()) {
+    cached = null;
+    return cached;
+  }
+
   try {
     cached = await import('expo-notifications');
   } catch {
