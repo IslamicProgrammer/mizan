@@ -23,6 +23,9 @@ interface AppWatchNative {
   foregroundPackage(): string | null;
   installedApps(): InstalledApp[];
   usageToday(): AppUsage[];
+  startFocus(blocked: string[], endsAt: number): void;
+  stopFocus(): void;
+  isFocusRunning(): boolean;
 }
 
 let native: AppWatchNative | null = null;
@@ -70,4 +73,26 @@ export function installedApps(): InstalledApp[] {
 
 export function usageToday(): AppUsage[] {
   return native?.usageToday() ?? [];
+}
+
+/**
+ * Starts (or restarts) the reminder service for this session: `blocked` is
+ * the package list it watches for, `endsAt` the epoch-millisecond time it
+ * must stop itself at. Passing `Number.MAX_SAFE_INTEGER` is how the test
+ * switch in focus/apps.tsx asks it to run with no end time -- the service
+ * tells that apart from a real session by how far in the future it is, not
+ * by a second parameter, so there is exactly one code path that starts it.
+ */
+export function startFocus(blocked: string[], endsAt: number): void {
+  native?.startFocus(blocked, endsAt);
+}
+
+/** Idempotent: stopping a service that already stopped itself (its `endsAt`
+ * passed) is a no-op, never an error. */
+export function stopFocus(): void {
+  native?.stopFocus();
+}
+
+export function isFocusRunning(): boolean {
+  return native?.isFocusRunning() ?? false;
 }

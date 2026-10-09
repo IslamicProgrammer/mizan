@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '../../design/Backdrop';
 
+import { startFocus, stopFocus } from '../../../modules/app-watch';
 import { Button } from '../../components/ui';
 import { countdown, currentPrayer, hhmm, nextPrayer, PRAYER_NAMES } from '../../data/prayer';
 import { useStore } from '../../data/store';
@@ -17,11 +18,15 @@ import { color, font, layout, lift, size } from '../../design/tokens';
  */
 export default function FocusActive() {
   const insets = useSafeAreaInsets();
-  const { settings, addFocusMinutes } = useStore();
+  const { settings, addFocusMinutes, blockedApps } = useStore();
   const [now, setNow] = useState(new Date());
   // When this screen was opened, so a genuine completion can bank exactly
   // the time the block was actually in effect.
   const [sessionStart] = useState(() => Date.now());
+  // Captured once, at the moment the session starts — not re-read on every
+  // tick, or the reminder service would be restarted every second along
+  // with it, re-arming the two-dismissals-and-done rule each time.
+  const [sessionEndsAt] = useState(() => nextPrayer(new Date(), settings.madhhab).slot.at.getTime());
   const [focusMinutes, setFocusMinutes] = useState(0);
 
   useEffect(() => {
@@ -31,6 +36,18 @@ export default function FocusActive() {
     }, 1000);
     return () => clearInterval(t);
   }, [sessionStart]);
+
+  useEffect(() => {
+    startFocus(blockedApps, sessionEndsAt);
+    // Every exit from this screen -- the genuine `complete()` path, "5
+    // daqiqa kutish", and "bugunga fokusni o'chirish" -- calls
+    // `router.back()`, which unmounts this component. Stopping
+    // unconditionally here, rather than only alongside `complete()`, is
+    // what keeps an abandoned session from leaving the user with a
+    // notification they cannot dismiss.
+    return () => stopFocus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const cur = currentPrayer(now, settings.madhhab);
   const next = nextPrayer(now, settings.madhhab);

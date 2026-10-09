@@ -26,6 +26,11 @@ class AppWatchModule extends NativeModule<{}> {
   usageToday(): AppUsage[] {
     return [];
   }
+  startFocus(_blocked: string[], _endsAt: number): void {}
+  stopFocus(): void {}
+  isFocusRunning(): boolean {
+    return false;
+  }
 }
 
 export default registerWebModule(AppWatchModule, 'AppWatchModule');

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The overlay from task 20: wrap-content height anchored to the top, never a
+  full-screen takeover, see FocusService.showOverlay. One line of Uzbek
+  and a dismiss, nothing else; there is no icon here because this is a
+  system-level reminder, not a place to draw a stand-in for the app it is
+  reminding about.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="#F8F2EA"
+    android:paddingStart="20dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
+    android:elevation="8dp">
+
+    <TextView
+        android:id="@+id/reminder_message"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="#0F0E0C"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/reminder_dismiss"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:text="Yopish"
+        android:textColor="#50320F"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:padding="8dp"
+        android:clickable="true"
+        android:focusable="true" />
+
+</LinearLayout>

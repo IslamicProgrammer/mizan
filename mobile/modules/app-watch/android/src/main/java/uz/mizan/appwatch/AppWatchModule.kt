@@ -1,16 +1,19 @@
 package uz.mizan.appwatch
 
 import android.app.AppOpsManager
-import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.net.Uri
 import android.os.Process
 import android.provider.Settings
+import android.util.Base64
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.ByteArrayOutputStream
 import java.util.Calendar
 
 /**
@@ -67,29 +70,13 @@ class AppWatchModule : Module() {
       }
     }
 
-    // `queryUsageStats(INTERVAL_DAILY, ...)` looks like the obvious API here,
-    // but its `lastTimeUsed` is a rolling aggregate Android only flushes every
-    // few minutes -- a reminder built on it would land long after the user
-    // already opened the distracting app. Walking the raw event stream for
-    // the newest ACTIVITY_RESUMED instead reports a switch within the same
-    // second it happened, which is what a timely reminder needs.
+    // See `ForegroundApp` for why this walks the raw event stream instead of
+    // `queryUsageStats(INTERVAL_DAILY, ...)`. It is shared with
+    // `FocusService`'s poll so a one-off check from JS and the reminder loop
+    // can never disagree about what is in front.
     Function("foregroundPackage") {
       val ctx = appContext.reactContext ?: return@Function null
-      val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-      val end = System.currentTimeMillis()
-      val start = end - LOOKBACK_MS
-      val events = usm.queryEvents(start, end)
-      val event = UsageEvents.Event()
-      var latestPackage: String? = null
-      var latestAt = Long.MIN_VALUE
-      while (events.hasNextEvent()) {
-        events.getNextEvent(event)
-        if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED && event.timeStamp >= latestAt) {
-          latestAt = event.timeStamp
-          latestPackage = event.packageName
-        }
-      }
-      latestPackage
+      ForegroundApp.query(ctx)
     }
 
     // Launchable, not installed: `queryIntentActivities` against
@@ -97,7 +84,7 @@ class AppWatchModule : Module() {
     // system components the user would never recognise as "an app" on
     // their home screen.
     Function("installedApps") {
-      val ctx = appContext.reactContext ?: return@Function emptyList<Map<String, String>>()
+      val ctx = appContext.reactContext ?: return@Function emptyList<Map<String, String?>>()
       val pm = ctx.packageManager
       val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
       val resolved = pm.queryIntentActivities(launcherIntent, 0)
@@ -109,7 +96,15 @@ class AppWatchModule : Module() {
         .mapNotNull { pkg ->
           try {
             val info = pm.getApplicationInfo(pkg, 0)
-            mapOf("pkg" to pkg, "label" to pm.getApplicationLabel(info).toString())
+            mapOf(
+              "pkg" to pkg,
+              "label" to pm.getApplicationLabel(info).toString(),
+              // Decoded from the OS icon at this exact call, never a bundled
+              // asset -- redrawing another company's icon is a trademark
+              // problem this module must never create. `null` on failure
+              // tells the JS side to fall back to a neutral letter tile.
+              "icon" to iconDataUri(pm, pkg),
+            )
           } catch (e: PackageManager.NameNotFoundException) {
             null
           }
@@ -132,9 +127,51 @@ class AppWatchModule : Module() {
         .filter { it.totalTimeInForeground > 0 && it.packageName != ctx.packageName }
         .map { mapOf("pkg" to it.packageName, "minutes" to (it.totalTimeInForeground / 60_000L).toInt()) }
     }
+
+    // `endsAt` is a JS `number` large enough (`Number.MAX_SAFE_INTEGER`, from
+    // the test switch) that it has to come through as a `Long`, not an `Int`.
+    // See the "void function" note on `requestUsageAccess` above for why this
+    // is an `if` rather than an early `return@Function`.
+    Function("startFocus") { blocked: List<String>, endsAt: Long ->
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        FocusService.start(ctx, blocked, endsAt)
+      }
+    }
+
+    Function("stopFocus") {
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        FocusService.stop(ctx)
+      }
+    }
+
+    Function("isFocusRunning") {
+      FocusService.isRunning
+    }
   }
 
   companion object {
-    private const val LOOKBACK_MS = 10_000L
+    private const val ICON_SIZE_PX = 64
+
+    // Rasterized at this exact call, from the OS's own `Drawable` -- never a
+    // bundled asset standing in for a real app's icon.
+    private fun iconDataUri(pm: PackageManager, pkg: String): String? {
+      return try {
+        val drawable = pm.getApplicationIcon(pkg)
+        val bitmap = Bitmap.createBitmap(ICON_SIZE_PX, ICON_SIZE_PX, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, ICON_SIZE_PX, ICON_SIZE_PX)
+        drawable.draw(canvas)
+        val out = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        "data:image/png;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+      } catch (e: Exception) {
+        // A rare `PackageManager` failure, or a drawable this decoder can't
+        // rasterize -- `null` tells the caller to fall back to a letter tile
+        // rather than showing a broken image.
+        null
+      }
+    }
   }
 }

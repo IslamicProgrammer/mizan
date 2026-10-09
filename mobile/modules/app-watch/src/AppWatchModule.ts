@@ -10,6 +10,9 @@ declare class AppWatchModule extends NativeModule<{}> {
   foregroundPackage(): string | null;
   installedApps(): InstalledApp[];
   usageToday(): AppUsage[];
+  startFocus(blocked: string[], endsAt: number): void;
+  stopFocus(): void;
+  isFocusRunning(): boolean;
 }
 
 export default requireNativeModule<AppWatchModule>('AppWatch');

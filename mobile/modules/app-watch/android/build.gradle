@@ -16,3 +16,10 @@ android {
     abortOnError false
   }
 }
+
+dependencies {
+  // NotificationCompat, for FocusService's foreground-service notification --
+  // matches the version expo-notifications already resolves elsewhere in
+  // this app, so Gradle never has two conflicting requests for it.
+  implementation 'androidx.core:core:1.17.0'
+}
