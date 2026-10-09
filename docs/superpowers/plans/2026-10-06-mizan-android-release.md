@@ -2682,3 +2682,110 @@ cd ../mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
 git add server/src server/.env.example mobile/src design-v3
 git commit -m "feat(scan): recognise the frame with Gemini, and say so plainly"
 ```
+
+---
+
+### Task 23: Lock mode, beside the reminder
+
+Added 9 Oct 2026 at the owner's request, after testing the reminder on a real
+phone and asking for an actual lock.
+
+The mockup says *"bu qulf emas, eslatma"* — this is not a lock, it is a
+reminder — and Task 20 built exactly that. The owner now wants a real lock. This
+adds it as a **second mode** rather than replacing the first, because both are
+defensible and which one works is a question about the user, not about the code:
+a reminder respects someone who has decided; a lock helps someone who has not.
+
+Almost all of it already exists. The foreground service, the rolling detection
+loop, the translucent Activity, the permissions and the config plugin are shared
+unchanged. What differs is which buttons the Activity shows and what Back does.
+
+**Files:**
+- Modify: `mobile/modules/app-watch/android/.../ReminderActivity.kt` (or whatever
+  Task 20's fix named it), `FocusService.kt`, `AppWatchModule.kt`, the plugin if
+  a new Activity flag is needed
+- Modify: `mobile/modules/app-watch/index.ts`
+- Modify: `mobile/src/app/focus/apps.tsx`, `mobile/src/data/store.tsx`
+- Modify: `design-v3/09-focusapps.html` — the mockup's copy changes, see below
+- Test: `mobile/src/data/__tests__/appwatch.test.ts`
+
+**Interfaces:**
+- `startFocus(blocked: string[], endsAt: number, mode: 'remind' | 'lock')` — the
+  third argument is new. Default `'remind'` if absent, so nothing that already
+  calls it changes behaviour.
+- Store gains `blockMode: 'remind' | 'lock'`, persisted, default `'remind'`.
+
+- [ ] **Step 1: The mode switch**
+
+A segmented control at the top of `focus/apps.tsx`, under the test switch:
+
+- `Eslatma` — sub: `Ogohlantiradi, lekin ilovani ochishga ruxsat beradi`
+- `Qulf` — sub: `Ilovani umuman ochtirmaydi`
+
+- [ ] **Step 2: What lock mode changes in the Activity**
+
+In `'lock'` mode the Activity drops `Davom etish` — there is no path back into
+the blocked app — and shows instead:
+
+- `Bosh ekran` → `startActivity` of the home intent (`ACTION_MAIN` +
+  `CATEGORY_HOME`), then `finish()`
+- `Fokusni to'xtatish` → opens Mizan so the session or the test switch can be
+  turned off, then `finish()`
+
+Back must behave as `Bosh ekran`, never as a dismissal. Override
+`onBackPressed` (or the predictive-back callback) rather than letting the
+default finish the Activity, because the default returns the user to the
+blocked app, which is precisely the hole.
+
+The two-dismissal cutoff is a **reminder** rule and must not apply in lock mode.
+In lock mode the Activity re-presents every time the blocked app comes forward,
+for as long as the session lasts.
+
+- [ ] **Step 3: Always leave a way out**
+
+This is the step that matters most and is easiest to skip. A lock the user
+cannot escape is not a feature, it is a bug report from someone who cannot use
+their phone.
+
+- `Fokusni to'xtatish` must work even while the lock is showing. Mizan itself is
+  never blockable — filter our own package out of `installedApps()` if that is
+  not already done, and assert it in a test.
+- The lock must never apply to the dialer, Settings, or the launcher. Keep a
+  small hard exclusion list by package prefix and test it.
+- A `'lock'` session still ends at `endsAt`. The test switch has no end time, so
+  it is the one case that can run indefinitely — make sure turning the switch
+  off is reachable in one tap from `Fokusni to'xtatish`.
+
+- [ ] **Step 4: Change the mockup's copy**
+
+`design-v3/09-focusapps.html` currently promises *"bu qulf emas, eslatma"*. With
+lock mode shipped, that sentence is only true of one of the two modes. Rewrite
+it to describe the choice:
+
+`Ikki xil: eslatma yoki qulf. O'zingiz tanlaysiz.`
+
+This project's rule is that copy comes from the mockups, so leaving the design
+file saying the opposite of what the app does is how the two drift apart.
+
+- [ ] **Step 5: Tests**
+
+- `startFocus` without a mode behaves as `'remind'` — the compatibility promise
+- Mizan's own package never appears in `installedApps()`
+- the dialer, Settings and the launcher are excluded from blocking
+- the dismissal cutoff applies in `'remind'` and does not in `'lock'`
+
+- [ ] **Step 6: Verify on device**
+
+Report with real output: in lock mode, opening a blocked app presents the lock;
+Back goes home rather than to the app; `Fokusni to'xtatish` reaches Mizan and
+turning the switch off releases it; reminder mode still lets `Davom etish`
+through.
+
+- [ ] **Step 7: Gate and commit**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+npx expo prebuild --platform android
+git add mobile/modules mobile/src design-v3
+git commit -m "feat(focus): add a lock mode beside the reminder"
+```
