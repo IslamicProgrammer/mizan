@@ -8,7 +8,7 @@ import { useStore } from '../../data/store';
 import { color, font } from '../../design/tokens';
 
 export default function FocusHome() {
-  const { settings, patchSettings, focusMinutes } = useStore();
+  const { settings, patchSettings, focusMinutes, blockedApps } = useStore();
   const h = Math.floor(focusMinutes / 60);
   const m = focusMinutes % 60;
 
@@ -53,6 +53,7 @@ export default function FocusHome() {
         <Row
           icon="apps"
           title="Bloklanadigan ilovalar"
+          sub={blockedApps.length > 0 ? `${blockedApps.length} ilova tanlangan` : 'Hali ilova tanlanmagan'}
           chevron
           onPress={() => router.push('/focus/apps')}
         />

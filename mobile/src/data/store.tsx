@@ -53,6 +53,14 @@ export type Settings = {
   cycleMode: boolean;
   nightTheme: boolean;
   notifyBefore: number; // minutes
+  /**
+   * The "Sinov rejimi" switch on focus/apps.tsx. Persisted so the switch
+   * reads back correctly across a normal navigation, but it is never read
+   * on app start to decide whether to start the native service -- see
+   * `reconcileTestBlock` in focus/apps.tsx for why a forgotten "on" must
+   * resolve to "off", not to a silently restarted background service.
+   */
+  testBlockNow: boolean;
 };
 
 export type State = {
@@ -82,6 +90,14 @@ export type State = {
    * written alongside it rather than derived from it later.
    */
   focusByDay: Record<string, number>;
+  /**
+   * Package names the user chose to block during focus sessions -- never a
+   * cached label or icon alongside them, which would go stale the moment
+   * the user changes locale or the app updates its own name. Rendered rows
+   * always re-resolve the label and icon from `installedApps()` at the
+   * moment they are shown.
+   */
+  blockedApps: string[];
   /**
    * Each entry is one cycle: the day the user turned the mode on, and the day
    * they turned it off. `to` is absent while a cycle is still open. This is
@@ -143,6 +159,7 @@ const DEFAULTS: State = {
     cycleMode: false,
     nightTheme: false,
     notifyBefore: 15,
+    testBlockNow: false,
   },
   marks: { fajr: null, sunrise: null, dhuhr: null, asr: null, maghrib: null, isha: null },
   marksDate: ymd(new Date()),
@@ -152,6 +169,7 @@ const DEFAULTS: State = {
   qaza: { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
   focusMinutes: 0,
   focusByDay: {},
+  blockedApps: [],
   cycles: [],
 };
 
@@ -228,6 +246,8 @@ type Store = State & {
    * or negative duration can never reduce the running total.
    */
   addFocusMinutes: (n: number) => void;
+  /** Adds `pkg` to `blockedApps` if it is absent, removes it if present. */
+  toggleBlockedApp: (pkg: string) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -428,6 +448,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             focusByDay: { ...s.focusByDay, [today]: (s.focusByDay[today] ?? 0) + add },
           };
         }),
+      toggleBlockedApp: (pkg) =>
+        setState((s) => ({
+          ...s,
+          blockedApps: s.blockedApps.includes(pkg)
+            ? s.blockedApps.filter((p) => p !== pkg)
+            : [...s.blockedApps, pkg],
+        })),
       finishOnboarding: () => setState((s) => ({ ...s, onboarded: true })),
       // Wipes real history rather than replacing it with invented days.
       // `startedAt` is set to today because a fresh start has no past in

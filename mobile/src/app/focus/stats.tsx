@@ -1,12 +1,26 @@
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Bar, Empty, Label, Screen } from '../../components/ui';
+import { hasUsageAccess, installedApps, requestUsageAccess, usageToday } from '../../../modules/app-watch';
+import { Bar, Empty, Label, List, Row, Screen } from '../../components/ui';
 import { hasAnyFocus, lastSevenDays } from '../../data/focusWeek';
 import { WEEKDAYS_UZ } from '../../data/prayer';
 import { useStore } from '../../data/store';
 import { color, font, layout, lift } from '../../design/tokens';
+
+/** Today's five most-used apps, labelled from the OS and sorted by minutes
+ * descending -- a top-five cut because the row this feeds is a glance, not
+ * a full report, and `usageToday()` can legitimately return every app on
+ * the device. */
+function topUsage(apps: { pkg: string; label: string }[], usage: { pkg: string; minutes: number }[]) {
+  const labelFor = new Map(apps.map((a) => [a.pkg, a.label]));
+  return usage
+    .filter((u) => labelFor.has(u.pkg))
+    .sort((a, b) => b.minutes - a.minutes)
+    .slice(0, 5)
+    .map((u) => ({ pkg: u.pkg, label: labelFor.get(u.pkg)!, minutes: u.minutes }));
+}
 
 /** Single-letter weekday label, two letters only for "shanba" — it and
  * "seshanba" are the only pair that would otherwise collide on their first
@@ -28,6 +42,15 @@ export default function FocusStats() {
   // disqualifies the chart is never having run a session at all.
   const neverFocused = !hasAnyFocus(focusByDay);
   const max = Math.max(1, ...week.map((w) => w.minutes));
+
+  // This was the empty state task 21 points at: there was no way to list
+  // real per-app usage before the native module existed to read it. Read
+  // once, synchronously, in the lazy initializer -- a native call this
+  // cheap does not need an effect and a loading flash to get its answer.
+  const [{ usageGranted, usage }] = useState(() => {
+    const has = hasUsageAccess();
+    return { usageGranted: has, usage: has ? topUsage(installedApps(), usageToday()) : [] };
+  });
 
   return (
     <Screen glow="soft" pad={false}>
@@ -60,6 +83,29 @@ export default function FocusStats() {
             );
           })}
         </View>
+      )}
+
+      <Label>Ilovalar bo'yicha bugungi vaqt</Label>
+      {!usageGranted ? (
+        <Empty
+          icon="apps"
+          title="Ruxsat berilmagan"
+          body="Qaysi ilovada qancha vaqt o'tkazilganini ko'rish uchun tizim ruxsati kerak."
+          action="Ruxsat berish"
+          onAction={requestUsageAccess}
+        />
+      ) : usage.length === 0 ? (
+        <Empty
+          icon="apps"
+          title="Bugun hali ma'lumot yo'q"
+          body="Ilovalardan foydalanilgach, bu yerda ko'rinadi."
+        />
+      ) : (
+        <List>
+          {usage.map((u) => (
+            <Row key={u.pkg} title={u.label} value={`${u.minutes}d`} />
+          ))}
+        </List>
       )}
 
       <Label>To'xtatilgan urinishlar</Label>

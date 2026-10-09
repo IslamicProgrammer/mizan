@@ -266,6 +266,56 @@ describe('cycle mode', () => {
   });
 });
 
+describe('toggleBlockedApp', () => {
+  it('starts with no apps blocked on a fresh install', async () => {
+    const store = await mountStore();
+    expect(store.current().blockedApps).toEqual([]);
+  });
+
+  it('adds a package the first time and removes it the second', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().toggleBlockedApp('com.instagram.android');
+    });
+    expect(store.current().blockedApps).toEqual(['com.instagram.android']);
+
+    await act(async () => {
+      store.current().toggleBlockedApp('com.instagram.android');
+    });
+    expect(store.current().blockedApps).toEqual([]);
+  });
+
+  it('persists the chosen packages across a fresh mount', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().toggleBlockedApp('com.zhiliaoapp.musically');
+    });
+
+    const reloaded = await mountStore();
+    expect(reloaded.current().blockedApps).toEqual(['com.zhiliaoapp.musically']);
+  });
+});
+
+describe('testBlockNow setting', () => {
+  it('defaults to off', async () => {
+    const store = await mountStore();
+    expect(store.current().settings.testBlockNow).toBe(false);
+  });
+
+  it('persists across a fresh mount, like any other setting', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().patchSettings({ testBlockNow: true });
+    });
+
+    const reloaded = await mountStore();
+    expect(reloaded.current().settings.testBlockNow).toBe(true);
+  });
+});
+
 describe('stateForSync', () => {
   it('drops cycles from the object Task 8 will send to the server', async () => {
     const store = await mountStore();
