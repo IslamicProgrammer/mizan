@@ -40,6 +40,23 @@ Docker is not installed. For a local Postgres, follow
 short `/tmp` path (103-byte limit), and `postgres` on `PATH` is 14.18 while the
 keg you want is 16.13.
 
+## Sideloaded builds and Android Restricted Settings
+
+Android 13+ refuses usage access and overlay permission to any app that did not
+come from an app store. A release APK sent over Telegram or `adb install` is
+exactly that, so the toggle in *Foydalanish axborotini olish* appears greyed out
+with "Cheklangan sozlama bilan boshqariladi" and a dialog saying the permission
+was denied.
+
+It is not a fault in the app. Unlock it once per install:
+
+**Sozlamalar → Ilovalar → Mizan → ⋮ (top right) → Cheklangan sozlamalarga ruxsat
+berish**, then grant the permission as normal. On Xiaomi/Oppo/Vivo/Realme skins
+the item can sit behind the ⓘ on the app-info page instead.
+
+Play-installed builds are exempt, so the 12 closed testers will never see this —
+only hand-delivered APKs.
+
 ## Gates
 
 ```bash
