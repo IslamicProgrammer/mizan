@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
 
 import {
+  appIcon,
   hasUsageAccess,
   installedApps,
   isFocusRunning,
@@ -125,11 +126,12 @@ export default function AppPicker() {
 }
 
 /**
- * One row in the real list. `app.icon` is a base64 `data:` URI decoded from
- * the OS at the moment the native module's `installedApps()` ran -- never a
- * bundled asset. If it is missing, or `Image` fails to decode it, the
- * fallback is the first letter of the label on a neutral tile, never a
- * drawn stand-in for a real brand's logo.
+ * One row in the real list. `installedApps()` carries no icon (task 21 fix
+ * -- inlining 150-300 of them froze the exact screen this feature is meant
+ * to be tested on), so each row fetches its own via `appIcon(pkg)` after it
+ * has already rendered with its label and letter tile. The native side
+ * caches the decoded result, so remounting this row (a re-render, a scroll
+ * back into view) costs a bridge call, not a re-decode.
  */
 function AppRow({
   app,
@@ -142,14 +144,33 @@ function AppRow({
   blocked: boolean;
   onToggle: () => void;
 }) {
+  const [icon, setIcon] = useState<string | null>(null);
   const [iconFailed, setIconFailed] = useState(false);
-  const showIcon = app.icon !== null && !iconFailed;
+
+  useEffect(() => {
+    // `appIcon` reaches out to the native module -- an external system, not
+    // derived React state -- so the fetch runs inside a microtask rather
+    // than synchronously in the effect body. That is what lets this row's
+    // first paint land with the letter tile before the icon arrives, and
+    // what keeps the lint rule for cascading renders satisfied.
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setIcon(appIcon(app.pkg));
+      setIconFailed(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [app.pkg]);
+
+  const showIcon = icon !== null && !iconFailed;
 
   return (
     <View style={s.row}>
       {showIcon ? (
         <Image
-          source={{ uri: app.icon! }}
+          source={{ uri: icon! }}
           style={s.icon}
           contentFit="cover"
           onError={() => setIconFailed(true)}

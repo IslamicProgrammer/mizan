@@ -23,6 +23,9 @@ class AppWatchModule extends NativeModule<{}> {
   installedApps(): InstalledApp[] {
     return [];
   }
+  appIcon(_pkg: string): string | null {
+    return null;
+  }
   usageToday(): AppUsage[] {
     return [];
   }

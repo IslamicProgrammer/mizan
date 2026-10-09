@@ -1,11 +1,10 @@
 /**
- * `icon` is a `data:image/png;base64,...` URI decoded from
- * `packageManager.getApplicationIcon(pkg)` at the moment `installedApps()`
- * is called -- never a bundled asset. `null` means the OS icon could not be
- * read (a rare `PackageManager` failure, not "no icon exists"); callers must
- * fall back to a neutral letter tile rather than drawing a stand-in for a
- * brand they have no license to redraw.
+ * Deliberately no icon field (task 21 fix): a phone with 150-300 launchable
+ * apps would push 5-15 MB of inline base64 across the bridge in one
+ * synchronous call if every row's icon rode along here. Call `appIcon(pkg)`
+ * per row instead -- it is cached natively, so re-asking for the same
+ * package after a re-render or a scroll is nearly free.
  */
-export type InstalledApp = { pkg: string; label: string; icon: string | null };
+export type InstalledApp = { pkg: string; label: string };
 
 export type AppUsage = { pkg: string; minutes: number };

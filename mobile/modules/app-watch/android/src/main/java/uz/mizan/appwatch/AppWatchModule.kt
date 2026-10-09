@@ -83,8 +83,14 @@ class AppWatchModule : Module() {
     // CATEGORY_LAUNCHER is what filters out services, libraries and
     // system components the user would never recognise as "an app" on
     // their home screen.
+    //
+    // No icon here on purpose (task 21 fix): a phone with 150-300 launchable
+    // apps would otherwise push 5-15 MB of base64 across the bridge in one
+    // synchronous call, enough to freeze this exact screen on the hardware
+    // it exists to be tested on. `appIcon(pkg)` fetches one icon at a time
+    // instead.
     Function("installedApps") {
-      val ctx = appContext.reactContext ?: return@Function emptyList<Map<String, String?>>()
+      val ctx = appContext.reactContext ?: return@Function emptyList<Map<String, String>>()
       val pm = ctx.packageManager
       val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
       val resolved = pm.queryIntentActivities(launcherIntent, 0)
@@ -99,11 +105,6 @@ class AppWatchModule : Module() {
             mapOf(
               "pkg" to pkg,
               "label" to pm.getApplicationLabel(info).toString(),
-              // Decoded from the OS icon at this exact call, never a bundled
-              // asset -- redrawing another company's icon is a trademark
-              // problem this module must never create. `null` on failure
-              // tells the JS side to fall back to a neutral letter tile.
-              "icon" to iconDataUri(pm, pkg),
             )
           } catch (e: PackageManager.NameNotFoundException) {
             null
@@ -111,6 +112,16 @@ class AppWatchModule : Module() {
         }
         .sortedBy { it["label"] }
         .toList()
+    }
+
+    // Decoded from the OS icon, never a bundled asset -- redrawing another
+    // company's icon is a trademark problem this module must never create.
+    // `null` on failure (or on a package that no longer resolves) tells the
+    // JS side to fall back to a neutral letter tile. One call per app, from
+    // a per-row loader, is what keeps `installedApps()` itself cheap.
+    Function("appIcon") { pkg: String ->
+      val pm = appContext.reactContext?.packageManager
+      if (pm == null) null else cachedIconDataUri(pm, pkg)
     }
 
     Function("usageToday") {
@@ -152,7 +163,28 @@ class AppWatchModule : Module() {
   }
 
   companion object {
-    private const val ICON_SIZE_PX = 64
+    // 96dp covers the ~40dp row icon at the highest common device density
+    // (xxxhdpi, 3x) with headroom; decoding an adaptive drawable at its
+    // native size (often 200px+) and shipping that whole bitmap was most of
+    // the per-icon cost this module used to pay on every call.
+    private const val ICON_SIZE_PX = 96
+
+    // An app's icon never changes while the process is alive, and this
+    // screen's list gets scrolled past repeatedly -- a per-process cache
+    // means each installed app is rasterized and base64-encoded at most
+    // once, no matter how many times the row scrolls on/off screen.
+    // `synchronized` because Expo module Functions are not guaranteed to
+    // all run on the same thread.
+    private val iconCache = mutableMapOf<String, String?>()
+
+    private fun cachedIconDataUri(pm: PackageManager, pkg: String): String? {
+      synchronized(iconCache) {
+        if (iconCache.containsKey(pkg)) return iconCache[pkg]
+      }
+      val uri = iconDataUri(pm, pkg)
+      synchronized(iconCache) { iconCache[pkg] = uri }
+      return uri
+    }
 
     // Rasterized at this exact call, from the OS's own `Drawable` -- never a
     // bundled asset standing in for a real app's icon.

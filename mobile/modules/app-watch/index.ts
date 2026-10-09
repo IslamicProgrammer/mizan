@@ -22,6 +22,7 @@ interface AppWatchNative {
   requestOverlayPermission(): void;
   foregroundPackage(): string | null;
   installedApps(): InstalledApp[];
+  appIcon(pkg: string): string | null;
   usageToday(): AppUsage[];
   startFocus(blocked: string[], endsAt: number): void;
   stopFocus(): void;
@@ -69,6 +70,15 @@ export function foregroundPackage(): string | null {
  * on every platform. */
 export function installedApps(): InstalledApp[] {
   return native?.installedApps() ?? [];
+}
+
+/** One icon as a base64 PNG data URI, or null when it can't be decoded, or
+ * on any platform without the module -- callers must fall back to a
+ * neutral letter tile rather than drawing a stand-in for a real brand's
+ * mark. Cached natively per package for the process lifetime, so calling
+ * this again for a row that already resolved is nearly free. */
+export function appIcon(pkg: string): string | null {
+  return native?.appIcon(pkg) ?? null;
 }
 
 export function usageToday(): AppUsage[] {

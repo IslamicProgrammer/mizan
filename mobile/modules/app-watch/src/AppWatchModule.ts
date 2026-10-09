@@ -9,6 +9,7 @@ declare class AppWatchModule extends NativeModule<{}> {
   requestOverlayPermission(): void;
   foregroundPackage(): string | null;
   installedApps(): InstalledApp[];
+  appIcon(pkg: string): string | null;
   usageToday(): AppUsage[];
   startFocus(blocked: string[], endsAt: number): void;
   stopFocus(): void;
