@@ -17,9 +17,11 @@ import java.util.Calendar
 /**
  * `UsageStatsManager`, not `AccessibilityService`. Decision D3 ruled out the
  * accessibility API because Google rejects accessibility-based app blockers
- * on review, repeatedly, and because the product itself is a reminder rather
- * than a lock ("bu qulf emas, eslatma") -- it only needs to notice which app
- * is in front, never to intercept or close it.
+ * on review, repeatedly, and because neither of this product's two modes
+ * (task 23: a reminder, "bu qulf emas, eslatma", or a lock) needs to
+ * intercept or close the app in front -- both only need to notice which app
+ * that is, and lock mode gets its effect from what `ReminderActivity` shows
+ * on top of it, never from touching the app itself.
  */
 class AppWatchModule : Module() {
   override fun definition() = ModuleDefinition {
@@ -95,7 +97,12 @@ class AppWatchModule : Module() {
         .asSequence()
         .map { it.activityInfo.packageName }
         .distinct()
-        .filter { it != ctx.packageName }
+        // `BlockGuard` (task 23), not a bare `!= ctx.packageName` check: the
+        // dialer, Settings and the launcher all declare a LAUNCHER activity
+        // of their own and would otherwise show up here as something the
+        // user could toggle on -- which lock mode (no path back into a
+        // blocked app) must never let happen.
+        .filter { BlockGuard.isBlockable(it, ctx.packageName) }
         .mapNotNull { pkg ->
           try {
             val info = pm.getApplicationInfo(pkg, 0)
@@ -140,10 +147,16 @@ class AppWatchModule : Module() {
     // the test switch) that it has to come through as a `Long`, not an `Int`.
     // See the "void function" note on `requestUsageAccess` above for why this
     // is an `if` rather than an early `return@Function`.
-    Function("startFocus") { blocked: List<String>, endsAt: Long ->
+    //
+    // `mode` is task 23's addition -- `"remind"` or `"lock"`. The default
+    // for a caller that omits it lives in `index.ts`, on the JS side of the
+    // bridge, not here: every existing JS call site already reaches this
+    // Function with three arguments by the time it gets here, so there is
+    // nothing for this layer to default.
+    Function("startFocus") { blocked: List<String>, endsAt: Long, mode: String ->
       val ctx = appContext.reactContext
       if (ctx != null) {
-        FocusService.start(ctx, blocked, endsAt)
+        FocusService.start(ctx, blocked, endsAt, mode)
       }
     }
 

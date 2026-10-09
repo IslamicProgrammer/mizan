@@ -60,6 +60,31 @@ class PresentationGateTest {
   }
 
   @Test
+  fun `lock mode is immune to the dismissal cutoff that gates the reminder`() {
+    val gate = PresentationGate()
+    // Present and dismiss twice -- enough to trip the reminder's cutoff.
+    gate.markPresented(ALIBABA, 0L)
+    gate.markDismissed(ALIBABA, 100L)
+    gate.markPresented(ALIBABA, 5_000L)
+    gate.markDismissed(ALIBABA, 5_100L)
+
+    // The reminder rule: a third presentation is refused.
+    assertNotNull(gate.suppressReason(ALIBABA, 10_000L))
+    // The exact same state, asked as a lock-mode session: task 23's rule is
+    // that the cutoff never applies, so the same package can present again.
+    assertNull(gate.suppressReason(ALIBABA, 10_000L, enforceDismissalRules = false))
+  }
+
+  @Test
+  fun `lock mode still respects the strobe window -- one resume is one presentation`() {
+    val gate = PresentationGate()
+    gate.markPresented(ALIBABA, 0L)
+
+    // Well inside the 1s strobe window, even with dismissal rules off.
+    assertNotNull(gate.suppressReason(ALIBABA, 500L, enforceDismissalRules = false))
+  }
+
+  @Test
   fun `reset clears dismissals and the strobe guard for a fresh session`() {
     val gate = PresentationGate()
     gate.markPresented(ALIBABA, 0L)

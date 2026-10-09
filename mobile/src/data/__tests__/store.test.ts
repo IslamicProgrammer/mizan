@@ -316,6 +316,24 @@ describe('testBlockNow setting', () => {
   });
 });
 
+describe('blockMode setting (task 23)', () => {
+  it('defaults to remind, not lock', async () => {
+    const store = await mountStore();
+    expect(store.current().settings.blockMode).toBe('remind');
+  });
+
+  it('persists the chosen mode across a fresh mount', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().patchSettings({ blockMode: 'lock' });
+    });
+
+    const reloaded = await mountStore();
+    expect(reloaded.current().settings.blockMode).toBe('lock');
+  });
+});
+
 describe('stateForSync', () => {
   it('drops cycles from the object Task 8 will send to the server', async () => {
     const store = await mountStore();

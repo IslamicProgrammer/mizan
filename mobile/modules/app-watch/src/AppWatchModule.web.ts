@@ -1,6 +1,6 @@
 import { registerWebModule, NativeModule } from 'expo';
 
-import type { AppUsage, InstalledApp } from './AppWatch.types';
+import type { AppUsage, BlockMode, InstalledApp } from './AppWatch.types';
 
 /**
  * `UsageStatsManager` is an Android-only API, so the web build has nothing
@@ -29,7 +29,7 @@ class AppWatchModule extends NativeModule<{}> {
   usageToday(): AppUsage[] {
     return [];
   }
-  startFocus(_blocked: string[], _endsAt: number): void {}
+  startFocus(_blocked: string[], _endsAt: number, _mode: BlockMode): void {}
   stopFocus(): void {}
   isFocusRunning(): boolean {
     return false;

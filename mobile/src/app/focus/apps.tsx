@@ -14,6 +14,7 @@ import {
   startFocus,
   stopFocus,
   usageToday,
+  type BlockMode,
   type InstalledApp,
 } from '../../../modules/app-watch';
 import { Button, Bar, Empty, Label, List, Note, Row, Screen, Toggle } from '../../components/ui';
@@ -91,10 +92,16 @@ export default function AppPicker() {
       ? 'overlay'
       : null;
 
+  // Never trust `settings.blockMode` to be defined -- an install that
+  // persisted its settings before task 23 shipped has it as `undefined`,
+  // and that must read as `'remind'`, not crash the comparison below or
+  // the native call it drives.
+  const blockMode: BlockMode = settings.blockMode === 'lock' ? 'lock' : 'remind';
+
   const onToggleTestMode = (v: boolean) => {
     patchSettings({ testBlockNow: v });
     if (v) {
-      startFocus(blockedApps, Number.MAX_SAFE_INTEGER);
+      startFocus(blockedApps, Number.MAX_SAFE_INTEGER, blockMode);
     } else {
       stopFocus();
     }
@@ -137,6 +144,30 @@ export default function AppPicker() {
               disabled={!!missingPermission}
             />
           }
+        />
+      </List>
+
+      {/*
+        Task 23: a choice between the two modes, not a second permission
+        gate -- which mode to use needs neither `usageGranted` nor
+        `overlayGranted`, the same reasoning the file header gives for the
+        app list itself. `blockMode` only ever reaches the native side
+        through a `startFocus` call (above, and eventually a real session's
+        own), never read natively on its own.
+      */}
+      <Label>Fokus turi</Label>
+      <List>
+        <Row
+          title="Eslatma"
+          sub="Ogohlantiradi, lekin ilovani ochishga ruxsat beradi"
+          on={blockMode === 'remind'}
+          onPress={() => patchSettings({ blockMode: 'remind' })}
+        />
+        <Row
+          title="Qulf"
+          sub="Ilovani umuman ochtirmaydi"
+          on={blockMode === 'lock'}
+          onPress={() => patchSettings({ blockMode: 'lock' })}
         />
       </List>
 

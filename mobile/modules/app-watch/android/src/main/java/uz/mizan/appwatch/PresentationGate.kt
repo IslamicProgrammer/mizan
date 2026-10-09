@@ -46,15 +46,29 @@ class PresentationGate(
    * reason rather than a boolean is what lets [FocusService] log the real
    * one instead of exiting quietly, which is the whole problem task 20's
    * fix round is about.
+   *
+   * `enforceDismissalRules` is `false` for a lock-mode session (task 23).
+   * The count-and-cooldown rules below exist only because the reminder has
+   * a `Davom etish` button that resumes the blocked app and must not
+   * immediately re-trigger itself, and only because dismissing the
+   * reminder twice is this app's signal that the user has decided and
+   * should be left alone. Lock mode has neither: there is no button back
+   * into the blocked app, and the whole point of choosing lock over remind
+   * is that the user's own dismissals must not be the thing that lets them
+   * back in. The strobe guard is left enforced either way -- it is not a
+   * reminder-specific courtesy, it is what keeps one app launch from being
+   * presented twice over a single burst of `ACTIVITY_RESUMED` events.
    */
-  fun suppressReason(pkg: String, now: Long): String? {
-    val count = dismissalsFor(pkg)
-    if (count >= maxDismissalsPerApp) {
-      return "dismissed $count time(s) already this session, at or past the limit of $maxDismissalsPerApp"
-    }
-    val lastDismiss = dismissedAt[pkg]
-    if (lastDismiss != null && now - lastDismiss < postDismissCooldownMs) {
-      return "dismissed ${now - lastDismiss}ms ago, inside the ${postDismissCooldownMs}ms post-dismiss cooldown"
+  fun suppressReason(pkg: String, now: Long, enforceDismissalRules: Boolean = true): String? {
+    if (enforceDismissalRules) {
+      val count = dismissalsFor(pkg)
+      if (count >= maxDismissalsPerApp) {
+        return "dismissed $count time(s) already this session, at or past the limit of $maxDismissalsPerApp"
+      }
+      val lastDismiss = dismissedAt[pkg]
+      if (lastDismiss != null && now - lastDismiss < postDismissCooldownMs) {
+        return "dismissed ${now - lastDismiss}ms ago, inside the ${postDismissCooldownMs}ms post-dismiss cooldown"
+      }
     }
     if (visiblePackage == pkg && now - visibleSince < strobeWindowMs) {
       return "already presented ${now - visibleSince}ms ago, inside the ${strobeWindowMs}ms strobe window"

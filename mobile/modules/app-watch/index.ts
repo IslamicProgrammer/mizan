@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
 
-import type { AppUsage, InstalledApp } from './src/AppWatch.types';
+import type { AppUsage, BlockMode, InstalledApp } from './src/AppWatch.types';
 
-export type { AppUsage, InstalledApp };
+export type { AppUsage, BlockMode, InstalledApp };
 
 /**
  * `requireNativeModule` throws synchronously the moment the native module
@@ -24,7 +24,7 @@ interface AppWatchNative {
   installedApps(): InstalledApp[];
   appIcon(pkg: string): string | null;
   usageToday(): AppUsage[];
-  startFocus(blocked: string[], endsAt: number): void;
+  startFocus(blocked: string[], endsAt: number, mode: BlockMode): void;
   stopFocus(): void;
   isFocusRunning(): boolean;
 }
@@ -86,15 +86,24 @@ export function usageToday(): AppUsage[] {
 }
 
 /**
- * Starts (or restarts) the reminder service for this session: `blocked` is
- * the package list it watches for, `endsAt` the epoch-millisecond time it
- * must stop itself at. Passing `Number.MAX_SAFE_INTEGER` is how the test
- * switch in focus/apps.tsx asks it to run with no end time -- the service
- * tells that apart from a real session by how far in the future it is, not
- * by a second parameter, so there is exactly one code path that starts it.
+ * Starts (or restarts) the reminder/lock service for this session:
+ * `blocked` is the package list it watches for, `endsAt` the
+ * epoch-millisecond time it must stop itself at. Passing
+ * `Number.MAX_SAFE_INTEGER` is how the test switch in focus/apps.tsx asks
+ * it to run with no end time -- the service tells that apart from a real
+ * session by how far in the future it is, not by a second parameter, so
+ * there is exactly one code path that starts it.
+ *
+ * `mode` is task 23's addition, defaulting to `'remind'` when omitted --
+ * the compatibility promise that keeps every call site written before
+ * lock mode existed (`focus/active.tsx`'s prayer-time session among them)
+ * behaving exactly as it did. This default lives here, at the one JS-side
+ * call site every platform's native binding (and the inert web/iOS stub)
+ * goes through, rather than in the native module itself, which always
+ * receives all three arguments as a result.
  */
-export function startFocus(blocked: string[], endsAt: number): void {
-  native?.startFocus(blocked, endsAt);
+export function startFocus(blocked: string[], endsAt: number, mode: BlockMode = 'remind'): void {
+  native?.startFocus(blocked, endsAt, mode);
 }
 
 /** Idempotent: stopping a service that already stopped itself (its `endsAt`

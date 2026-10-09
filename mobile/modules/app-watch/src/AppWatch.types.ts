@@ -8,3 +8,12 @@
 export type InstalledApp = { pkg: string; label: string };
 
 export type AppUsage = { pkg: string; minutes: number };
+
+/**
+ * `'remind'` shows the translucent card and lets `Davom etish` carry on
+ * into the blocked app; `'lock'` (task 23) drops that path entirely -- see
+ * `ReminderActivity.kt`. Shared here, not declared separately on each side
+ * of the bridge, so `index.ts`'s default and the native module's type
+ * cannot drift apart.
+ */
+export type BlockMode = 'remind' | 'lock';

@@ -1,6 +1,6 @@
 import { NativeModule, requireNativeModule } from 'expo';
 
-import type { AppUsage, InstalledApp } from './AppWatch.types';
+import type { AppUsage, BlockMode, InstalledApp } from './AppWatch.types';
 
 declare class AppWatchModule extends NativeModule<{}> {
   hasUsageAccess(): boolean;
@@ -11,7 +11,7 @@ declare class AppWatchModule extends NativeModule<{}> {
   installedApps(): InstalledApp[];
   appIcon(pkg: string): string | null;
   usageToday(): AppUsage[];
-  startFocus(blocked: string[], endsAt: number): void;
+  startFocus(blocked: string[], endsAt: number, mode: BlockMode): void;
   stopFocus(): void;
   isFocusRunning(): boolean;
 }

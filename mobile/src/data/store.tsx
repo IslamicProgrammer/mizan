@@ -25,6 +25,8 @@ import React, {
   useState,
 } from 'react';
 
+import type { BlockMode } from '../../modules/app-watch';
+
 import { FIVE, type Madhhab, type PrayerId } from './prayer';
 
 export type PrayerMark = 'done' | 'late' | 'qaza' | null;
@@ -61,6 +63,18 @@ export type Settings = {
    * resolve to "off", not to a silently restarted background service.
    */
   testBlockNow: boolean;
+  /**
+   * The choice on focus/apps.tsx's segmented control (task 23): `'remind'`
+   * shows the translucent card and lets the user carry on into the blocked
+   * app; `'lock'` drops that path entirely. Defaults to `'remind'` --
+   * both for a fresh install and for an install that persisted its
+   * settings before this field existed, since a missing field reads back
+   * as `undefined` here, never as `'lock'`. Read at the moment a session
+   * actually starts (the test switch, or a real session once one is wired
+   * to it), not cached anywhere native -- the native side only ever knows
+   * the mode a given `startFocus` call told it.
+   */
+  blockMode: BlockMode;
 };
 
 export type State = {
@@ -160,6 +174,7 @@ const DEFAULTS: State = {
     nightTheme: false,
     notifyBefore: 15,
     testBlockNow: false,
+    blockMode: 'remind',
   },
   marks: { fajr: null, sunrise: null, dhuhr: null, asr: null, maghrib: null, isha: null },
   marksDate: ymd(new Date()),

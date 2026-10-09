@@ -17,16 +17,27 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 
 /**
- * "bu qulf emas, eslatma" (D3, task 20) -- this service never touches the
- * app it finds in front. It polls [ForegroundAppTracker] and, while a
- * blocked package is there, launches [ReminderActivity]; it never closes,
- * kills, or otherwise interferes with the found app.
+ * "bu qulf emas, eslatma" (D3, task 20) -- for a `'remind'` session, this
+ * service never touches the app it finds in front. It polls
+ * [ForegroundAppTracker] and, while a blocked package is there, launches
+ * [ReminderActivity]; it never closes, kills, or otherwise interferes with
+ * the found app.
+ *
+ * Task 23 added `'lock'` as a second mode, chosen per session via
+ * [mode]. The poll loop itself does not change -- the only differences are
+ * which buttons [ReminderActivity] shows (its own concern, driven by the
+ * `mode` extra this service passes along) and whether [PresentationGate]'s
+ * dismissal cutoff applies (it must not, in lock mode -- see [tick]).
+ * [BlockGuard] is checked in both modes alike: Mizan's own package, the
+ * dialer, Settings and the launcher are never presentable, whatever `mode`
+ * is and whatever the `blocked` list this session was started with
+ * happens to contain.
  *
  * A single instance serves one session at a time: `startFocus` from JS
  * always targets this same component, so a second call while one is
  * already running (a restarted session, or the test switch flipping off
- * and back on) replaces the blocked list, end time, tracker and dismissal
- * counts rather than stacking a second poller.
+ * and back on) replaces the blocked list, end time, mode, tracker and
+ * dismissal counts rather than stacking a second poller.
  *
  * `START_STICKY`: the OEM skins this app ships to kill background services
  * routinely, and that is the normal case this has to survive, not an edge
@@ -40,6 +51,12 @@ class FocusService : Service() {
   private var blocked: Set<String> = emptySet()
   private var endsAt: Long = 0L
   private var testMode: Boolean = false
+
+  // `MODE_REMIND` unless a `startFocus` call explicitly asked for
+  // `MODE_LOCK` -- the same "absent means remind" promise `index.ts` keeps
+  // on the JS side of the bridge, kept again here for the sticky-restart
+  // path (`restoreSession`), which has no fresh intent to read a mode from.
+  private var mode: String = MODE_REMIND
 
   private val tracker = ForegroundAppTracker()
   private val gate = PresentationGate()
@@ -75,6 +92,7 @@ class FocusService : Service() {
     } else {
       blocked = (intent.getStringArrayListExtra(EXTRA_BLOCKED) ?: arrayListOf()).toSet()
       endsAt = intent.getLongExtra(EXTRA_ENDS_AT, 0L)
+      mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_REMIND
       // `Number.MAX_SAFE_INTEGER` milliseconds (what the test switch in
       // focus/apps.tsx sends) is effectively "no end time" -- millions of
       // years out. A real focus session is never within a day of that, so
@@ -140,12 +158,22 @@ class FocusService : Service() {
     val events = ForegroundApp.queryResumeEvents(this, tracker.windowStart(now), now)
     val fg = tracker.poll(now, events)
 
-    if (fg == null || !blocked.contains(fg)) {
+    // `BlockGuard` is checked here, not only at the picker that built
+    // `blocked` -- that list is JS-controlled, and a guard that only lives
+    // upstream is a guard that stops working the moment anything upstream
+    // of it changes. This is the one line standing between a bug in that
+    // list and a session that cannot be escaped.
+    if (fg == null || !blocked.contains(fg) || !BlockGuard.isBlockable(fg, packageName)) {
       lastLoggedIssue = null
       return
     }
 
-    val reason = gate.suppressReason(fg, now)
+    // The dismissal cutoff and its cooldown are a reminder-only courtesy
+    // (see `PresentationGate.suppressReason`) -- lock mode has no
+    // `Davom etish` for the cooldown to guard against, and must not let
+    // repeated dismissals add up to a way back in. The strobe guard still
+    // applies either way.
+    val reason = gate.suppressReason(fg, now, enforceDismissalRules = mode != MODE_LOCK)
     if (reason != null) {
       logIssueOnce("not presenting the reminder for $fg: $reason")
       return
@@ -171,6 +199,7 @@ class FocusService : Service() {
       )
       putExtra(ReminderActivity.EXTRA_PACKAGE, pkg)
       putExtra(ReminderActivity.EXTRA_LABEL, appLabel(pkg))
+      putExtra(ReminderActivity.EXTRA_MODE, mode)
     }
     try {
       startActivity(intent)
@@ -194,12 +223,17 @@ class FocusService : Service() {
     prefs.edit()
       .putStringSet(PREF_BLOCKED, blocked)
       .putLong(PREF_ENDS_AT, endsAt)
+      .putString(PREF_MODE, mode)
       .apply()
   }
 
   private fun restoreSession() {
     blocked = prefs.getStringSet(PREF_BLOCKED, emptySet()) ?: emptySet()
     endsAt = prefs.getLong(PREF_ENDS_AT, 0L)
+    // A lock-mode session restarted by the OS must keep locking, not quietly
+    // soften into a reminder because the sticky restart had no fresh intent
+    // to read a mode from.
+    mode = prefs.getString(PREF_MODE, MODE_REMIND) ?: MODE_REMIND
     testMode = endsAt - System.currentTimeMillis() > TEST_MODE_THRESHOLD_MS
   }
 
@@ -242,8 +276,17 @@ class FocusService : Service() {
     private const val PREFS_NAME = "focus_service_state"
     private const val PREF_BLOCKED = "blocked"
     private const val PREF_ENDS_AT = "endsAt"
+    private const val PREF_MODE = "mode"
     const val EXTRA_BLOCKED = "blocked"
     const val EXTRA_ENDS_AT = "endsAt"
+    const val EXTRA_MODE = "mode"
+
+    // Matches `ReminderActivity`'s own `MODE_REMIND`/`MODE_LOCK` and
+    // `index.ts`'s `BlockMode` union -- plain strings, not a shared enum,
+    // because this value crosses the JS bridge (a JS `string`) and
+    // `SharedPreferences` (no enum support) before it ever reaches Kotlin.
+    const val MODE_REMIND = "remind"
+    const val MODE_LOCK = "lock"
 
     // Read by `AppWatchModule.isFocusRunning`. A plain flag this process
     // sets on itself, rather than asking `ActivityManager` to enumerate
@@ -267,10 +310,11 @@ class FocusService : Service() {
       instance?.gate?.markDismissed(pkg, System.currentTimeMillis())
     }
 
-    fun start(ctx: Context, blocked: List<String>, endsAt: Long) {
+    fun start(ctx: Context, blocked: List<String>, endsAt: Long, mode: String = MODE_REMIND) {
       val intent = Intent(ctx, FocusService::class.java)
         .putStringArrayListExtra(EXTRA_BLOCKED, ArrayList(blocked))
         .putExtra(EXTRA_ENDS_AT, endsAt)
+        .putExtra(EXTRA_MODE, mode)
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         ctx.startForegroundService(intent)
       } else {
