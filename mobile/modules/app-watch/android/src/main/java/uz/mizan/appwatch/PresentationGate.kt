@@ -1,0 +1,91 @@
+package uz.mizan.appwatch
+
+/**
+ * Decides whether [FocusService] should present the reminder for a blocked
+ * package right now, and holds the two numbers that keep it a reminder
+ * rather than a strobe light:
+ *
+ * - the package currently on screen and when it was presented, so several
+ *   `ACTIVITY_RESUMED` events from one app launch present the reminder
+ *   once, not once per event (the strobe guard)
+ * - how many times each package has been dismissed this session, and when
+ *   the most recent dismissal was. Finishing the reminder Activity hands
+ *   the blocked app's task back to the front -- which resumes it, which
+ *   looks identical to the user opening it again unless a dismissal buys a
+ *   few seconds of silence first
+ *
+ * Pure and Android-free, like [ForegroundAppTracker] -- unit-tested
+ * directly against a fake clock rather than through Robolectric or a
+ * device.
+ */
+class PresentationGate(
+  private val maxDismissalsPerApp: Int = DEFAULT_MAX_DISMISSALS_PER_APP,
+  private val strobeWindowMs: Long = DEFAULT_STROBE_WINDOW_MS,
+  private val postDismissCooldownMs: Long = DEFAULT_POST_DISMISS_COOLDOWN_MS,
+) {
+  @Volatile
+  private var visiblePackage: String? = null
+  private var visibleSince: Long = 0L
+
+  // Per-package for this session only -- cleared by `reset()`, which
+  // `FocusService` calls on every fresh `startFocus`. A package dismissed
+  // twice last session has not said anything about this one.
+  private val dismissals = mutableMapOf<String, Int>()
+  private val dismissedAt = mutableMapOf<String, Long>()
+
+  fun reset() {
+    visiblePackage = null
+    dismissals.clear()
+    dismissedAt.clear()
+  }
+
+  fun dismissalsFor(pkg: String): Int = dismissals[pkg] ?: 0
+
+  /**
+   * Null means "present it". A non-null string is the reason not to -- a
+   * reason rather than a boolean is what lets [FocusService] log the real
+   * one instead of exiting quietly, which is the whole problem task 20's
+   * fix round is about.
+   */
+  fun suppressReason(pkg: String, now: Long): String? {
+    val count = dismissalsFor(pkg)
+    if (count >= maxDismissalsPerApp) {
+      return "dismissed $count time(s) already this session, at or past the limit of $maxDismissalsPerApp"
+    }
+    val lastDismiss = dismissedAt[pkg]
+    if (lastDismiss != null && now - lastDismiss < postDismissCooldownMs) {
+      return "dismissed ${now - lastDismiss}ms ago, inside the ${postDismissCooldownMs}ms post-dismiss cooldown"
+    }
+    if (visiblePackage == pkg && now - visibleSince < strobeWindowMs) {
+      return "already presented ${now - visibleSince}ms ago, inside the ${strobeWindowMs}ms strobe window"
+    }
+    return null
+  }
+
+  fun markPresented(pkg: String, now: Long) {
+    visiblePackage = pkg
+    visibleSince = now
+  }
+
+  /** The reminder for `pkg` is off screen -- clearing the strobe guard here
+   * (rather than only on a timeout) is what lets a genuinely new launch of
+   * the same app present again once its own reminder has actually gone. */
+  fun markHidden(pkg: String) {
+    if (visiblePackage == pkg) visiblePackage = null
+  }
+
+  /** Called once, regardless of which button the user tapped -- both
+   * `Davom etish` and `Yopish` end the reminder, and both are what the
+   * cooldown and the two-dismissal cutoff are counting. */
+  fun markDismissed(pkg: String, now: Long) {
+    dismissals[pkg] = dismissalsFor(pkg) + 1
+    dismissedAt[pkg] = now
+    markHidden(pkg)
+  }
+
+  companion object {
+    private const val DEFAULT_MAX_DISMISSALS_PER_APP = 2
+    private const val DEFAULT_STROBE_WINDOW_MS = 1_000L
+    private const val DEFAULT_POST_DISMISS_COOLDOWN_MS = 3_000L
+  }
+}

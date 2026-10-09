@@ -238,22 +238,34 @@ export function Segment({
   );
 }
 
-export function Toggle({ value, onChange }: { value: boolean; onChange?: (v: boolean) => void }) {
+export function Toggle({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: boolean;
+  onChange?: (v: boolean) => void;
+  /** Greyed out and inert -- for a switch whose action would silently do
+   * nothing without a permission the screen already knows is missing. */
+  disabled?: boolean;
+}) {
   const knob = useAnimatedStyle(() => ({
     transform: [{ translateX: withSpring(value ? 19 : 0, motion.springTight) }],
   }));
   return (
     <Pressable
       accessibilityRole="switch"
-      accessibilityState={{ checked: value }}
+      accessibilityState={{ checked: value, disabled: !!disabled }}
+      disabled={disabled}
       onPress={() => {
+        if (disabled) return;
         Haptics.selectionAsync();
         onChange?.(!value);
       }}
       // the track is 27pt tall for looks; hitSlop takes the TARGET to 49pt,
       // which clears Android's 48dp minimum
       hitSlop={{ top: 11, bottom: 11, left: 6, right: 6 }}
-      style={[s.tg, value && s.tgOn]}
+      style={[s.tg, value && s.tgOn, disabled && s.tgDisabled]}
     >
       <Animated.View style={[s.tgKnob, knob]} />
     </Pressable>
@@ -480,6 +492,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   tgOn: { backgroundColor: color.accent },
+  tgDisabled: { opacity: 0.4 },
   tgKnob: { width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFFCF6' },
 
   tiles: { marginHorizontal: layout.gutter, flexDirection: 'row', gap: 10 },

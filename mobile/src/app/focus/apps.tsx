@@ -1,22 +1,24 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { AppState, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import {
   appIcon,
+  hasOverlayPermission,
   hasUsageAccess,
   installedApps,
   isFocusRunning,
+  requestOverlayPermission,
   requestUsageAccess,
   startFocus,
   stopFocus,
   usageToday,
   type InstalledApp,
 } from '../../../modules/app-watch';
-import { Bar, Empty, Label, List, Row, Screen, Toggle } from '../../components/ui';
+import { Button, Bar, Empty, Label, List, Note, Row, Screen, Toggle } from '../../components/ui';
 import { useStore } from '../../data/store';
-import { color, font } from '../../design/tokens';
+import { color, font, layout, lift } from '../../design/tokens';
 
 /**
  * The real app list (task 21). Icons and labels are never cached alongside
@@ -24,18 +26,34 @@ import { color, font } from '../../design/tokens';
  * every time this screen renders, through `AppRow` below, so a locale
  * change or an app update can never leave a stale label or a dead icon on
  * screen.
+ *
+ * Which apps to block is a choice the user can make with neither permission
+ * granted yet -- `installedApps` needs none of them -- so the list below is
+ * never hidden behind a permission gate the way an earlier version hid the
+ * whole screen. Only `usageToday`'s per-row minutes, and the `Sinov rejimi`
+ * switch that actually starts the service, wait on them.
  */
-type Snapshot = { granted: boolean; apps: InstalledApp[]; usage: Record<string, number> };
+type Snapshot = {
+  usageGranted: boolean;
+  overlayGranted: boolean;
+  apps: InstalledApp[];
+  usage: Record<string, number>;
+};
 
 /** Reads the OS exactly once per call -- used both for the initial render
- * and for every return-to-foreground, so there is one definition of "the
- * current truth" rather than two that could drift apart. */
+ * and for every focus of this screen (task 20 fix round 1: a value read
+ * once at mount is stale exactly when it matters, since both permissions
+ * are granted from a system Settings screen this component never sees
+ * return from directly). */
 function readSnapshot(): Snapshot {
-  const granted = hasUsageAccess();
-  if (!granted) return { granted, apps: [], usage: {} };
+  const usageGranted = hasUsageAccess();
+  const overlayGranted = hasOverlayPermission();
+  const apps = installedApps();
   const usage: Record<string, number> = {};
-  for (const u of usageToday()) usage[u.pkg] = u.minutes;
-  return { granted, apps: installedApps(), usage };
+  if (usageGranted) {
+    for (const u of usageToday()) usage[u.pkg] = u.minutes;
+  }
+  return { usageGranted, overlayGranted, apps, usage };
 }
 
 export default function AppPicker() {
@@ -43,30 +61,35 @@ export default function AppPicker() {
   // Computed once, synchronously, for the first render -- a native read
   // this cheap belongs in the lazy initializer, not behind a loading flash
   // caused by fetching it again inside an effect.
-  const [{ granted, apps, usage }, setSnapshot] = useState(readSnapshot);
+  const [{ usageGranted, overlayGranted, apps, usage }, setSnapshot] = useState(readSnapshot);
 
-  useEffect(() => {
-    // A test switch that reads "on" after the process restarted (a device
-    // reboot, the app killed from recents) but has no service actually
-    // running behind it is exactly the "permanent background service the
-    // user cannot account for" task 21 warns against. Correcting it to
-    // "off" here -- never restarting the service to match a stale flag --
-    // is a one-time reconciliation against the native service's real state
-    // at mount, not a data fetch that belongs in the render path.
-    if (settings.testBlockNow && !isFocusRunning()) {
-      patchSettings({ testBlockNow: false });
-    }
-    // `requestUsageAccess` only opens Settings; it cannot report back when
-    // the user grants it there. Re-checking on every return to the
-    // foreground -- inside this subscription callback, never in the effect
-    // body itself -- is what lets this screen reflect that without a
-    // second manual navigation.
-    const sub = AppState.addEventListener('change', (next) => {
-      if (next === 'active') setSnapshot(readSnapshot());
-    });
-    return () => sub.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setSnapshot(readSnapshot());
+      // A test switch that reads "on" after the process restarted (a device
+      // reboot, the app killed from recents) but has no service actually
+      // running behind it is exactly the "permanent background service the
+      // user cannot account for" task 21 warns against. Correcting it to
+      // "off" here -- never restarting the service to match a stale flag --
+      // is a one-time reconciliation against the native service's real
+      // state, run on every return to this screen rather than only at
+      // mount, for the same reason the permission re-check above is.
+      if (settings.testBlockNow && !isFocusRunning()) {
+        patchSettings({ testBlockNow: false });
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settings.testBlockNow]),
+  );
+
+  // Usage access first: without it there is no foreground app to detect at
+  // all, so there is nothing the overlay/background-launch permission could
+  // do yet either. Fixing one card at a time, in the order that actually
+  // unblocks the feature, beats listing both at once.
+  const missingPermission: 'usage' | 'overlay' | null = !usageGranted
+    ? 'usage'
+    : !overlayGranted
+      ? 'overlay'
+      : null;
 
   const onToggleTestMode = (v: boolean) => {
     patchSettings({ testBlockNow: v });
@@ -81,47 +104,86 @@ export default function AppPicker() {
     <Screen glow="soft" pad={false}>
       <Bar title="Ilovalar" onBack={() => router.back()} />
 
-      {!granted ? (
+      {missingPermission ? (
+        <>
+          <PermissionCard
+            title={
+              missingPermission === 'usage'
+                ? "Foydalanish ruxsati yo'q"
+                : "Ustidan ko'rsatish ruxsati yo'q"
+            }
+            body={
+              missingPermission === 'usage'
+                ? 'Qaysi ilova ochilganini bilish uchun shu ruxsat kerak.'
+                : "Eslatmani boshqa ilova ustida ko'rsatish uchun kerak."
+            }
+            action="Ruxsat berish"
+            onAction={missingPermission === 'usage' ? requestUsageAccess : requestOverlayPermission}
+          />
+          <Note>
+            {"Agar sozlamada tugma o'chiq bo'lsa: Ilovalar → Mizan → ⋮ → Cheklangan sozlamalarga ruxsat berish."}
+          </Note>
+        </>
+      ) : null}
+
+      <List>
+        <Row
+          title="Sinov rejimi"
+          sub="Tanlangan ilovalar darhol bloklanadi — fokus seansini kutmasdan"
+          right={
+            <Toggle
+              value={settings.testBlockNow}
+              onChange={onToggleTestMode}
+              disabled={!!missingPermission}
+            />
+          }
+        />
+      </List>
+
+      <Label>Bloklanadigan ilovalar</Label>
+      {apps.length === 0 ? (
         <Empty
-          icon="lock"
-          title="Ilovalarni bloklash uchun ruxsat kerak."
-          body="Qaysi ilova oldinda turganini ko'rish uchun tizim sozlamalaridan ruxsat bering."
-          action="Ruxsat berish"
-          onAction={requestUsageAccess}
+          icon="apps"
+          title="Ilovalar topilmadi"
+          body="Qurilmada ochiladigan ilova topilmadi."
         />
       ) : (
-        <>
-          <List>
-            <Row
-              title="Sinov rejimi"
-              sub="Tanlangan ilovalar darhol bloklanadi — fokus seansini kutmasdan"
-              right={<Toggle value={settings.testBlockNow} onChange={onToggleTestMode} />}
+        <List>
+          {apps.map((app) => (
+            <AppRow
+              key={app.pkg}
+              app={app}
+              minutes={usage[app.pkg]}
+              blocked={blockedApps.includes(app.pkg)}
+              onToggle={() => toggleBlockedApp(app.pkg)}
             />
-          </List>
-
-          <Label>Bloklanadigan ilovalar</Label>
-          {apps.length === 0 ? (
-            <Empty
-              icon="apps"
-              title="Ilovalar topilmadi"
-              body="Qurilmada ochiladigan ilova topilmadi."
-            />
-          ) : (
-            <List>
-              {apps.map((app) => (
-                <AppRow
-                  key={app.pkg}
-                  app={app}
-                  minutes={usage[app.pkg]}
-                  blocked={blockedApps.includes(app.pkg)}
-                  onToggle={() => toggleBlockedApp(app.pkg)}
-                />
-              ))}
-            </List>
-          )}
-        </>
+          ))}
+        </List>
       )}
     </Screen>
+  );
+}
+
+/** The card above the `Sinov rejimi` row while a permission it needs is
+ * missing -- which permission, in plain Uzbek, and the one button that
+ * opens the right Settings screen for it. */
+function PermissionCard({
+  title,
+  body,
+  action,
+  onAction,
+}: {
+  title: string;
+  body: string;
+  action: string;
+  onAction: () => void;
+}) {
+  return (
+    <View style={[s.permCard, lift.low]}>
+      <Text style={s.permTitle}>{title}</Text>
+      <Text style={s.permBody}>{body}</Text>
+      <Button label={action} tone="ghost" onPress={onAction} style={s.permBtn} />
+    </View>
   );
 }
 
@@ -208,4 +270,16 @@ const s = StyleSheet.create({
   rowText: { flex: 1, gap: 2, minWidth: 0 },
   rowTitle: { fontFamily: font.bold, fontSize: 15, color: color.ink },
   rowSub: { fontFamily: font.medium, fontSize: 12, color: color.inkSoft },
+
+  permCard: {
+    marginHorizontal: layout.gutter,
+    marginBottom: 14,
+    padding: 16,
+    borderRadius: layout.radius.md,
+    backgroundColor: color.surface,
+    gap: 8,
+  },
+  permTitle: { fontFamily: font.bold, fontSize: 15, color: color.ink },
+  permBody: { fontFamily: font.medium, fontSize: 12.5, lineHeight: 18, color: color.inkSoft },
+  permBtn: { alignSelf: 'stretch', marginTop: 4 },
 });

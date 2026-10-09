@@ -22,4 +22,10 @@ dependencies {
   // matches the version expo-notifications already resolves elsewhere in
   // this app, so Gradle never has two conflicting requests for it.
   implementation 'androidx.core:core:1.17.0'
+
+  // ForegroundAppTracker and PresentationGate are deliberately plain Kotlin,
+  // with no Android types in their public surface, so they can be tested
+  // here with plain JUnit -- no Robolectric, no device or emulator needed.
+  // Same version expo-modules-core itself pins for its own local unit tests.
+  testImplementation 'junit:junit:4.13.2'
 }

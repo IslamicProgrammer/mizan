@@ -31,6 +31,9 @@ const PERMISSIONS = [
 // package-relative name would resolve to a class that does not exist there.
 const SERVICE_NAME = 'uz.mizan.appwatch.FocusService';
 
+// Same reasoning, same mistake to avoid, as `SERVICE_NAME` above.
+const REMINDER_ACTIVITY_NAME = 'uz.mizan.appwatch.ReminderActivity';
+
 /**
  * Android 14 requires every foreground service to declare a type; the only
  * honest fit for a reminder that watches the foreground app is `specialUse`,
@@ -88,11 +91,52 @@ function ensureFocusService(manifest) {
   });
 }
 
+/**
+ * The reminder itself (task 20 fix round 1), launched from `FocusService`
+ * in the background -- which is only a permitted background activity
+ * launch because the app holds `SYSTEM_ALERT_WINDOW`, not because of
+ * anything declared here.
+ *
+ * `Theme.Translucent.NoTitleBar.Fullscreen`: a real Activity, not an
+ * overlay view, but it must still look like a reminder floating over the
+ * blocked app, not a screen of its own.
+ * `singleInstance`: its own task, separate from the blocked app's --
+ * finishing it (either button) reveals the blocked app's task exactly as
+ * it was, never finishes or reorders it.
+ * `excludeFromRecents`: a reminder that flashes up for a few seconds has no
+ * business being a card in the recents switcher after it closes.
+ * `exported=false`: nothing outside this app may launch it.
+ */
+function ensureReminderActivity(manifest) {
+  const app = manifest.application && manifest.application[0];
+  if (!app) return;
+
+  if (!Array.isArray(app.activity)) {
+    app.activity = [];
+  }
+
+  const already = app.activity.some(
+    (entry) => entry.$ && entry.$['android:name'] === REMINDER_ACTIVITY_NAME,
+  );
+  if (already) return;
+
+  app.activity.push({
+    $: {
+      'android:name': REMINDER_ACTIVITY_NAME,
+      'android:theme': '@android:style/Theme.Translucent.NoTitleBar.Fullscreen',
+      'android:launchMode': 'singleInstance',
+      'android:excludeFromRecents': 'true',
+      'android:exported': 'false',
+    },
+  });
+}
+
 const withAppWatch = (config) => {
   return withAndroidManifest(config, (config) => {
     const manifest = config.modResults.manifest;
     ensurePermissions(manifest);
     ensureFocusService(manifest);
+    ensureReminderActivity(manifest);
     return config;
   });
 };

@@ -1,6 +1,5 @@
 package uz.mizan.appwatch
 
-import android.app.AppOpsManager
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
@@ -8,7 +7,6 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
-import android.os.Process
 import android.provider.Settings
 import android.util.Base64
 import expo.modules.kotlin.modules.Module
@@ -27,15 +25,14 @@ class AppWatchModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("AppWatch")
 
+    // Delegates to `ForegroundApp.hasUsageAccess` -- `FocusService`'s poll
+    // checks the exact same thing on every tick, and a second copy of this
+    // check drifting from the first is exactly how this module's screen and
+    // the service it starts could disagree about whether the permission is
+    // actually granted.
     Function("hasUsageAccess") {
       val ctx = appContext.reactContext ?: return@Function false
-      val ops = ctx.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-      val mode = ops.unsafeCheckOpNoThrow(
-        AppOpsManager.OPSTR_GET_USAGE_STATS,
-        Process.myUid(),
-        ctx.packageName,
-      )
-      mode == AppOpsManager.MODE_ALLOWED
+      ForegroundApp.hasUsageAccess(ctx)
     }
 
     // PACKAGE_USAGE_STATS sits behind a special-access screen, not a runtime
@@ -70,13 +67,13 @@ class AppWatchModule : Module() {
       }
     }
 
-    // See `ForegroundApp` for why this walks the raw event stream instead of
-    // `queryUsageStats(INTERVAL_DAILY, ...)`. It is shared with
-    // `FocusService`'s poll so a one-off check from JS and the reminder loop
-    // can never disagree about what is in front.
+    // A one-off, short-lookback read -- see `ForegroundApp.queryOnce`. This
+    // is deliberately not the same rolling state `FocusService`'s poll
+    // keeps in its own `ForegroundAppTracker`; a single JS call has no
+    // session to roll a window over.
     Function("foregroundPackage") {
       val ctx = appContext.reactContext ?: return@Function null
-      ForegroundApp.query(ctx)
+      ForegroundApp.queryOnce(ctx)
     }
 
     // Launchable, not installed: `queryIntentActivities` against
