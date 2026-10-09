@@ -57,7 +57,15 @@ The app tells the user, in two places, **"Rasm saqlanmaydi va hech qayerga yubor
 | **Cloud Gemini** | **no — copy must change** | no | low | per call, every morning, every user |
 | Hybrid, cloud fallback | no, on the fallback path | partly | high | partial |
 
-**Recommendation: on-device.** Three reasons, in order. The promise is already printed in the UI and withdrawing it is a real cost to a product whose other differentiator is public honesty. The alarm fires at dawn when a phone may be in airplane mode or on poor rural signal, and a scan that needs the network is a scan that fails exactly when it matters. And a per-call cost on a daily action for every user, in a market where the subscription is ~16 500 so'm/month, is a bad unit economic.
+**RESOLVED 9 Oct 2026 by the owner: cloud Gemini, and the copy changes.** The
+promise in `design-v3/11-scanobject.html` and `scan.tsx` is rewritten to say
+plainly that the photo is sent to a server and deleted after matching, and the
+privacy policy must say the same. Task 22 carries that work; shipping the
+recognition without the copy change would make the app lie about the one thing
+it is loudest about. Note the key cannot live in the app — anything in
+`EXPO_PUBLIC_*` is readable by anyone who downloads the APK — so the image goes
+to our own server, which holds the Gemini key. The original recommendation,
+left for the record: **on-device.** Three reasons, in order. The promise is already printed in the UI and withdrawing it is a real cost to a product whose other differentiator is public honesty. The alarm fires at dawn when a phone may be in airplane mode or on poor rural signal, and a scan that needs the network is a scan that fails exactly when it matters. And a per-call cost on a daily action for every user, in a market where the subscription is ~16 500 so'm/month, is a bad unit economic.
 
 **If Gemini is chosen anyway**, the plan must add a task to rewrite that copy in `design-v3/11-scanobject.html` and `scan.tsx` to say plainly that the photo is sent to a server and deleted after matching — and the privacy policy must say the same.
 
@@ -2288,4 +2296,365 @@ first time during an EAS build.
 ```bash
 git add mobile/src mobile/app.json mobile/package.json mobile/package-lock.json
 git commit -m "fix(privacy): keep cycle history out of AsyncStorage and off Google Drive"
+```
+
+---
+
+### Task 19: A native module that can see which app is in front
+
+Added 9 Oct 2026. The plan's self-review claimed app blocking was covered by a
+task. It was not — decision D3 exists and no task implements it. This is the
+first of three that do.
+
+Nothing in Expo exposes `UsageStatsManager`, so this is a real Expo native
+module in Kotlin. It does the reading and the permission plumbing only; the
+reminder itself is Task 20.
+
+D3 chose `UsageStatsManager` + an overlay over `AccessibilityService`, because
+Google rejects accessibility-API app blockers repeatedly and the mockup already
+promises the gentler behaviour: *"bu qulf emas, eslatma"* — this is not a lock,
+it is a reminder.
+
+**Files:**
+- Create: `mobile/modules/app-watch/expo-module.config.json`
+- Create: `mobile/modules/app-watch/android/src/main/java/uz/mizan/appwatch/AppWatchModule.kt`
+- Create: `mobile/modules/app-watch/index.ts`
+- Create: `mobile/modules/app-watch/plugin/withAppWatch.js` (config plugin)
+- Modify: `mobile/app.json` (register the plugin)
+- Test: `mobile/src/data/__tests__/appwatch.test.ts`
+
+**Interfaces produced** — Task 20 and 21 consume these by name:
+- `hasUsageAccess(): boolean`
+- `requestUsageAccess(): void` — opens the system settings screen; cannot be granted in-app
+- `hasOverlayPermission(): boolean`
+- `requestOverlayPermission(): void`
+- `foregroundPackage(): string | null` — the package in front right now, or null
+- `installedApps(): { pkg: string; label: string }[]` — launchable apps only
+- `usageToday(): { pkg: string; minutes: number }[]`
+
+Note there is **no icon field**. Icons come from
+`packageManager.getApplicationIcon(pkg)` at render time in Task 21. Never bundle
+or redraw another company's logo — that is a trademark problem, not a styling
+choice.
+
+- [ ] **Step 1: Scaffold the module**
+
+```bash
+cd mobile && npx create-expo-module@latest --local app-watch
+```
+
+Answer the prompts with package `uz.mizan.appwatch`. Delete the generated iOS
+directory and the example view — this is Android-only, and an empty iOS target
+that throws is worse than no target. `index.ts` must return safe values on iOS
+and web (`false`, `null`, `[]`) rather than throwing, because `npm run smoke`
+renders every route in a browser.
+
+- [ ] **Step 2: Write the failing test**
+
+```ts
+// mobile/src/data/__tests__/appwatch.test.ts
+import { hasUsageAccess, foregroundPackage, installedApps } from '../../../modules/app-watch';
+
+describe('app-watch on a platform without it', () => {
+  it('reports no access rather than throwing', () => {
+    expect(hasUsageAccess()).toBe(false);
+  });
+  it('returns null for the foreground app', () => {
+    expect(foregroundPackage()).toBeNull();
+  });
+  it('returns an empty list, not undefined', () => {
+    expect(installedApps()).toEqual([]);
+  });
+});
+```
+
+Run under the default jest environment, which is not Android. A module that
+throws here would crash every screen that imports it — the same failure mode
+`expo-notifications` caused in Expo Go, and the reason that one is now a guarded
+dynamic import.
+
+- [ ] **Step 3: Run it and watch it fail**
+
+Run: `cd mobile && npx jest src/data/__tests__/appwatch.test.ts`
+Expected: FAIL — the module does not exist.
+
+- [ ] **Step 4: Write the Kotlin**
+
+`AppWatchModule.kt`, using the Expo Modules API `Definition {}` DSL:
+
+```kotlin
+Name("AppWatch")
+
+Function("hasUsageAccess") {
+  val ctx = appContext.reactContext ?: return@Function false
+  val ops = ctx.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+  val mode = ops.unsafeCheckOpNoThrow(
+    AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), ctx.packageName,
+  )
+  mode == AppOpsManager.MODE_ALLOWED
+}
+```
+
+`PACKAGE_USAGE_STATS` can never be granted by a runtime prompt — the user must
+toggle it in Settings. `requestUsageAccess` therefore launches
+`Settings.ACTION_USAGE_ACCESS_SETTINGS`, and `requestOverlayPermission`
+launches `Settings.ACTION_MANAGE_OVERLAY_PERMISSION` with
+`package:` + the package name. Both need `FLAG_ACTIVITY_NEW_TASK`.
+
+`foregroundPackage` reads `UsageStatsManager.queryEvents` over the last ten
+seconds and returns the package of the most recent
+`UsageEvents.Event.ACTIVITY_RESUMED`. Do **not** use `queryUsageStats` with
+`INTERVAL_DAILY` for this — its `lastTimeUsed` lags by minutes and would make
+the reminder arrive long after the user opened the app.
+
+`installedApps` filters to packages with a launcher intent, excludes our own,
+and sorts by label.
+
+- [ ] **Step 5: Write the config plugin**
+
+CNG regenerates `android/` on every prebuild, so the manifest entries must come
+from a config plugin, never from editing `android/` by hand. `withAppWatch.js`
+adds:
+
+```xml
+<uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+  tools:ignore="ProtectedPermissions" />
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+<uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+```
+
+`QUERY_ALL_PACKAGES` is a Play-restricted permission and needs a declaration in
+the Play Console. Note it in your report — Task 12 has to answer for it.
+
+- [ ] **Step 6: Run the tests to verify they pass**
+
+Run: `cd mobile && npx jest src/data/__tests__/appwatch.test.ts`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 7: Verify on a device**
+
+A dev build is required; Expo Go cannot load a custom native module. The NDK is
+already cached, so this is fast:
+
+```bash
+cd mobile && npx expo run:android
+```
+
+Report, with real output: whether `hasUsageAccess()` is false before granting
+and true after, what `foregroundPackage()` returns while a different app is in
+front (open Settings and read it), and how many entries `installedApps()`
+returns. If you cannot observe one of these, say so rather than implying you
+did.
+
+- [ ] **Step 8: Gate and commit**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+npx expo config --type public >/dev/null
+git add mobile/modules mobile/app.json mobile/src
+git commit -m "feat(android): a native module that can see the foreground app"
+```
+
+---
+
+### Task 20: The reminder, not a lock
+
+Added 9 Oct 2026. Second of three for app blocking.
+
+A foreground service polls `foregroundPackage()` and, when a blocked app is in
+front during an active focus session, draws an overlay. The mockup's words are
+the specification: *"bu qulf emas, eslatma"*. It must be dismissible, it must
+not fight the user, and a second dismissal for the same app within the session
+must leave them alone.
+
+**Files:**
+- Create: `mobile/modules/app-watch/android/src/main/java/uz/mizan/appwatch/FocusService.kt`
+- Create: `mobile/modules/app-watch/android/src/main/res/layout/reminder.xml`
+- Modify: `mobile/modules/app-watch/index.ts`, `plugin/withAppWatch.js`
+- Modify: `mobile/src/app/focus/active.tsx`
+
+**Interfaces produced:**
+- `startFocus(blocked: string[], endsAt: number): void`
+- `stopFocus(): void`
+- `isFocusRunning(): boolean`
+
+- [ ] **Step 1: Declare the service**
+
+Android 14 requires a `foregroundServiceType`, and the only honest fit here is
+`specialUse`, which additionally requires a property explaining why:
+
+```xml
+<service android:name=".FocusService" android:exported="false"
+  android:foregroundServiceType="specialUse">
+  <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+    android:value="Reminds the user when a distracting app is opened during a
+    focus session the user started." />
+</service>
+```
+
+Also add `<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />`
+and `FOREGROUND_SERVICE_SPECIAL_USE`. Google reviews this string — write it as
+the truth, not as keywords.
+
+- [ ] **Step 2: Poll, do not spin**
+
+Poll `foregroundPackage()` on a 2-second handler loop, not a tight loop and not
+a 200ms one. Battery is the reason OEMs kill background work, and a focus
+session can run for an hour. Stop the service the moment `endsAt` passes, so a
+forgotten session cannot drain the battery all day.
+
+- [ ] **Step 3: The overlay**
+
+`WindowManager` with `TYPE_APPLICATION_OVERLAY`, `FLAG_NOT_FOCUSABLE` so typing
+elsewhere still works, wrap-content height anchored to the top — not a
+full-screen takeover. One line of Uzbek, the remaining focus time, and a
+dismiss. Copy:
+
+- `Fokus rejimi — {N} daqiqa qoldi`
+- dismiss: `Yopish`
+
+After two dismissals for the same package in one session, stop showing it for
+that package. Someone who has said no twice has decided, and a third overlay is
+the app arguing with its user.
+
+- [ ] **Step 4: Wire the session**
+
+`focus/active.tsx` calls `startFocus` when the countdown begins and `stopFocus`
+when it ends **or is abandoned**. An abandoned session that leaves the service
+running is a notification the user cannot get rid of.
+
+- [ ] **Step 5: Verify on a device**
+
+Report with real output: the service appears in `adb shell dumpsys activity services | grep FocusService`; opening a blocked app during a session draws the overlay; dismissing twice stops it for that app; ending the session removes the notification and the service.
+
+- [ ] **Step 6: Gate and commit**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+git add mobile/modules mobile/src
+git commit -m "feat(focus): remind rather than block when a distracting app opens"
+```
+
+---
+
+### Task 21: The real app list
+
+Added 9 Oct 2026. Third of three. Task 16 left `focus/apps.tsx` showing a
+permission empty state, because there was no way to list apps. Now there is.
+
+**Files:**
+- Modify: `mobile/src/app/focus/apps.tsx`, `mobile/src/app/focus/index.tsx`,
+  `mobile/src/app/focus/stats.tsx`, `mobile/src/data/store.tsx`
+
+- [ ] **Step 1: Store the chosen packages**
+
+`blockedApps: string[]` in the store, persisted. Package names only — never a
+cached label or icon, which go stale when the user changes locale or updates an
+app.
+
+- [ ] **Step 2: Render the list**
+
+`installedApps()` for the rows, `usageToday()` for the per-app minutes that
+`focus/stats.tsx` has been showing an empty state for. Icons come from the OS at
+render time through the native module; if an icon cannot be loaded, fall back to
+the first letter of the label on a neutral tile — **never** a drawn stand-in for
+a real brand.
+
+- [ ] **Step 3: Keep the permission state honest**
+
+If usage access is not granted, the screen explains and offers the button that
+opens Settings — it does not list fabricated apps, and it does not pretend the
+feature is on. Task 16's copy stays until permission is actually granted.
+
+- [ ] **Step 4: Gate and commit**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+git add mobile/src
+git commit -m "feat(focus): list the apps actually installed on the phone"
+```
+
+---
+
+### Task 22: Fajr scan through Gemini, and the copy that has to change with it
+
+Added 9 Oct 2026. Decision D2 was resolved by the owner on 9 Oct: cloud Gemini,
+and the promise is rewritten. `alarm/scan.tsx` currently succeeds on a 3.2-second
+timer; `MOCK_DETECT_MS` is the whole recognition.
+
+**The copy change is not optional and ships in the same commit as the feature.**
+The app says, in two places, *"Rasm saqlanmaydi va hech qayerga yuborilmaydi"* —
+the image is not saved and not sent anywhere. Sending it to Gemini makes that
+false. Shipping the recognition without the new wording would make the app lie
+about the one subject it is loudest about.
+
+**The Gemini key never goes in the app.** Anything in `EXPO_PUBLIC_*` is
+compiled into the bundle and readable by anyone who downloads the APK. The phone
+uploads the frame to our own server, which holds the key.
+
+**Files:**
+- Create: `server/src/routes/scan.ts`, `server/src/scan/gemini.ts`
+- Test: `server/src/__tests__/scan.test.ts`
+- Modify: `mobile/src/app/alarm/scan.tsx`, `design-v3/11-scanobject.html`
+- Modify: `server/.env.example` (`GEMINI_API_KEY`)
+
+**Interfaces produced:**
+- `POST /scan` — authenticated, multipart or base64 JPEG, returns
+  `{ match: boolean; label?: string }`
+
+- [ ] **Step 1: Write the failing server test**
+
+```ts
+it('refuses an unauthenticated scan', async () => {
+  const res = await app.inject({ method: 'POST', url: '/scan', payload: { image: 'x' } });
+  expect(res.statusCode).toBe(401);
+});
+
+it('rejects a payload too large to be a camera frame', async () => {
+  // a 10MB body must be refused before it ever reaches Gemini
+});
+
+it('returns match:false rather than throwing when Gemini is unreachable', async () => {
+  // the alarm must still be dismissible when the network is down
+});
+```
+
+That last one is the important one. The alarm fires at dawn, and a phone on poor
+rural signal or in airplane mode must not trap the user in a screen that cannot
+be satisfied. On any failure the scan falls back to the timer behaviour and the
+alarm can be dismissed.
+
+- [ ] **Step 2: Implement**
+
+`gemini.ts` sends the frame with a prompt asking only whether the image contains
+a prayer mat or a bathroom sink, and parses a strict yes/no. Cap the request at
+one per 10 seconds per user and reject bodies over 2 MB. **Never write the image
+to disk and never log it** — the new copy promises it is deleted after matching,
+and that has to be true in code rather than in a sentence.
+
+- [ ] **Step 3: Rewrite the promise**
+
+In `mobile/src/app/alarm/scan.tsx` and `design-v3/11-scanobject.html`, replace
+*"Rasm saqlanmaydi va hech qayerga yuborilmaydi"* with:
+
+`Rasm tekshirish uchun serverga yuboriladi va darhol o'chiriladi. Hech qayerda saqlanmaydi.`
+
+*(The image is sent to the server for checking and deleted immediately. It is
+not stored anywhere.)*
+
+The design file changes too — this project's rule is that copy comes from the
+mockups, so a change that lands only in the app puts them out of sync.
+
+- [ ] **Step 4: Note it for the privacy policy**
+
+The privacy policy Task 13 links to must say the same thing. Record this in your
+report; Task 12 cannot submit to Play with a policy that contradicts the app.
+
+- [ ] **Step 5: Gate and commit**
+
+```bash
+cd server && npx tsc --noEmit && npm test
+cd ../mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+git add server/src server/.env.example mobile/src design-v3
+git commit -m "feat(scan): recognise the frame with Gemini, and say so plainly"
 ```
