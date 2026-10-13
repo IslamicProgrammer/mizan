@@ -2860,3 +2860,168 @@ npx expo prebuild --platform android
 git add mobile/modules mobile/src design-v3
 git commit -m "feat(focus): add a lock mode beside the reminder"
 ```
+
+---
+
+### Task 24: A Fajr alarm that actually goes off
+
+Added 13 Oct 2026. The app has a ringing screen, a hold-to-escape, a camera
+scan that dismisses it, and a `fajrAlarm` toggle in settings. **None of it is
+ever triggered.** The only thing that opens `/alarm/ringing` is a
+*"Signalni sinab ko'rish"* test button in `settings/alarm.tsx`. There is no
+alarm — there is a demonstration of one.
+
+Task 11 was written as "survive Doze and tell the user when you cannot", which
+would have hardened something that does not exist. This builds the thing first;
+Task 11's permission-state UI folds in as Step 7.
+
+A prayer alarm is the feature people will judge this app on. If it fails once,
+at 5am, they uninstall it. Everything below is chosen for reliability over
+elegance.
+
+**Files:**
+- Create: `mobile/modules/app-watch/android/src/main/java/uz/mizan/appwatch/AlarmScheduler.kt`,
+  `AlarmReceiver.kt`, `BootReceiver.kt`, `AlarmService.kt`
+- Modify: `mobile/modules/app-watch/android/.../AppWatchModule.kt`,
+  `mobile/modules/app-watch/index.ts`, `plugin/withAppWatch.js`
+- Modify: `mobile/src/app/_layout.tsx`, `mobile/src/app/settings/alarm.tsx`,
+  `mobile/src/app/alarm/ringing.tsx`
+- Test: `mobile/modules/app-watch/android/src/test/.../AlarmScheduleTest.kt`,
+  `mobile/src/data/__tests__/alarm.test.ts`
+
+**Interfaces:**
+- `scheduleFajrAlarm(atEpochMs: number): void`
+- `cancelFajrAlarm(): void`
+- `canScheduleExact(): boolean`
+- `requestExactAlarmPermission(): void`
+- `nextFajrAlarmAt(): number | null`
+
+- [ ] **Step 1: Use `setAlarmClock`, nothing weaker**
+
+`AlarmManager.setAlarmClock(AlarmClockInfo, PendingIntent)` is the only API the
+system treats as critical enough to **leave Doze for**, and it is the only one
+that shows the alarm icon in the status bar — which doubles as the user's proof
+it is set. `setExactAndAllowWhileIdle` is weaker and `setRepeating` is not exact
+at all.
+
+Alarms are **single-fire**. Reschedule tomorrow's from inside the receiver when
+today's fires, and again on every app start, because a receiver that never ran
+leaves nothing scheduled.
+
+- [ ] **Step 2: Declare the permissions, and handle being refused**
+
+In `withAppWatch.js`:
+
+```xml
+<uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+```
+
+Both alarm permissions, deliberately. `USE_EXACT_ALARM` is granted at install
+but Google Play restricts it to apps whose core user-facing function needs
+precise timing — an alarm clock qualifies, and this is one. `SCHEDULE_EXACT_ALARM`
+is the fallback, and since Android 14 it is **denied by default**: check
+`AlarmManager.canScheduleExactAlarms()` and, when false, send the user to
+`Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM`.
+
+Record for Task 12: both `USE_EXACT_ALARM` and `USE_FULL_SCREEN_INTENT` need a
+Play Console declaration. Full-screen intents are restricted to alarm and calling
+apps on Android 14+, and shipping without the declaration is a rejection.
+
+- [ ] **Step 3: Receiver → notification → Activity**
+
+The chain that works, in this order and no other:
+
+`setAlarmClock` fires → a lightweight `AlarmReceiver` → a high-priority
+notification carrying a **full-screen intent** → the app opens at
+`/alarm/ringing` → a short-lived foreground service holds the wake lock and
+plays the sound.
+
+The receiver must do almost nothing — post the notification and return. Work in
+a receiver is killed.
+
+The full-screen intent is what shows the alarm over the lock screen. On a device
+where the user has refused it, the notification still arrives as a heads-up with
+sound, which is a degraded alarm rather than no alarm. Build for that case
+instead of assuming the grant.
+
+- [ ] **Step 4: Sound that behaves like an alarm**
+
+Play through `AudioManager.STREAM_ALARM`, not the media or notification stream —
+it is the stream that ignores silent mode and uses the alarm volume the user
+set for exactly this. Loop until dismissed. Hold a `PARTIAL_WAKE_LOCK` for the
+duration and release it in `onDestroy`, in a `finally`, because a leaked wake
+lock flattens the battery overnight and is the single worst bug this feature can
+have.
+
+The settings screen already promises *"Asta-sekin kuchayadi"* — gradually gets
+louder. Honour it: ramp the volume over the first 30 seconds rather than opening
+at full. That promise is already printed, so it is not optional.
+
+- [ ] **Step 5: Schedule from the real prayer time**
+
+`mobile/src/data/prayer.ts` already computes Fajr via `adhan` for the user's
+madhhab. On app start, and whenever `fajrAlarm` or the madhhab changes:
+
+- `settings.fajrAlarm` false → `cancelFajrAlarm()`
+- true → schedule the **next** Fajr; if today's has passed, tomorrow's
+
+Never schedule a time in the past: `setAlarmClock` with a past time fires
+immediately, which means an alarm going off the moment the user enables it.
+
+- [ ] **Step 6: Survive a reboot**
+
+`BootReceiver` on `RECEIVE_BOOT_COMPLETED` (already in the manifest)
+recalculates and reschedules. Alarms do not survive a restart, and a phone
+restarted at midnight is a phone with no alarm at 5am — which the user only
+discovers by sleeping through it.
+
+- [ ] **Step 7: Tell the user when it cannot work (was Task 11)**
+
+`settings/alarm.tsx` currently shows a toggle that promises something it does
+not deliver. It must show the real state:
+
+- exact alarms not permitted → `Aniq vaqtda ishlashi uchun ruxsat kerak` with a
+  button to the system screen
+- notifications not permitted → the same for `POST_NOTIFICATIONS`
+- battery optimisation on → `Telefon ilovani uxlatib qo'yishi mumkin` and a
+  button to `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`
+
+The toggle is **disabled** while exact alarms are refused. A switch that is on
+while the alarm cannot fire is the lie this task exists to remove.
+
+Under it, show when the next alarm will actually ring, read from
+`nextFajrAlarmAt()` — not recomputed in JS. If the two ever disagree, the user
+should see what the system has, not what the app believes.
+
+- [ ] **Step 8: Tests**
+
+Pure Kotlin, in the module's existing JUnit suite:
+- the next Fajr from a given "now" is tomorrow's when today's has passed
+- never returns a time in the past
+- changing madhhab changes the scheduled time
+
+JS side:
+- turning `fajrAlarm` off calls `cancelFajrAlarm`
+- turning it on with exact alarms refused does **not** claim to have scheduled
+
+- [ ] **Step 9: Verify, and say what you could not**
+
+The local emulator ANRs on cold start under ARM translation; previous agents
+lost whole windows to it. Do not fight it. Report what you confirmed:
+`adb shell dumpsys alarm | grep uz.mizan` showing the alarm with its trigger
+time, and the manifest entries after `npx expo prebuild --platform android`.
+
+Say plainly that a real 5am fire is unverified. It is the owner's to test, and
+the only test that counts.
+
+- [ ] **Step 10: Gate and commit**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+npx expo prebuild --platform android
+git add mobile/modules mobile/src
+git commit -m "feat(alarm): a Fajr alarm that is actually scheduled and actually rings"
+```
