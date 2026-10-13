@@ -5,6 +5,7 @@ const ok = {
   DATABASE_URL: 'postgres://u@localhost:5432/db',
   JWT_SECRET: 'x'.repeat(32),
   GOOGLE_CLIENT_ID: 'client',
+  GEMINI_API_KEY: 'gemini-key',
 };
 
 describe('readEnv', () => {
@@ -13,6 +14,7 @@ describe('readEnv', () => {
       databaseUrl: ok.DATABASE_URL,
       jwtSecret: ok.JWT_SECRET,
       googleClientId: 'client',
+      geminiApiKey: 'gemini-key',
       port: 8080,
     });
   });

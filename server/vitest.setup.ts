@@ -7,3 +7,4 @@
 process.env.DATABASE_URL ??= 'postgres://test:test@localhost:5432/test';
 process.env.JWT_SECRET ??= 'test-only-not-a-real-secret-0123456789ab';
 process.env.GOOGLE_CLIENT_ID ??= 'test-client-id';
+process.env.GEMINI_API_KEY ??= 'test-only-not-a-real-key';

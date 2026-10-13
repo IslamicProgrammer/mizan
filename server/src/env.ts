@@ -4,6 +4,7 @@ export type Env = {
   databaseUrl: string;
   jwtSecret: string;
   googleClientId: string;
+  geminiApiKey: string;
   port: number;
 };
 
@@ -38,6 +39,7 @@ export function readEnv(raw: Raw): Env {
     databaseUrl: need('DATABASE_URL'),
     jwtSecret: needLong('JWT_SECRET', 32),
     googleClientId: need('GOOGLE_CLIENT_ID'),
+    geminiApiKey: need('GEMINI_API_KEY'),
     port: Number(raw.PORT ?? 8080),
   };
 }
