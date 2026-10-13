@@ -5,6 +5,8 @@ export type Env = {
   jwtSecret: string;
   googleClientId: string;
   geminiApiKey: string;
+  scanPublic: boolean;
+  scanDailyMax: number;
   port: number;
 };
 
@@ -40,6 +42,20 @@ export function readEnv(raw: Raw): Env {
     jwtSecret: needLong('JWT_SECRET', 32),
     googleClientId: need('GOOGLE_CLIENT_ID'),
     geminiApiKey: need('GEMINI_API_KEY'),
+    /**
+     * `/scan` has no authentication yet — Task 8 has not landed, so no client
+     * can hold a token. Until it does, the route is only registered when this
+     * is explicitly true. Fail closed: deploying this server without thinking
+     * about it should not quietly publish an endpoint that spends money on
+     * every request from anyone who finds the URL.
+     */
+    scanPublic: raw.SCAN_PUBLIC === 'true',
+    /**
+     * A ceiling on what a bad day can cost, independent of who is calling.
+     * Per-IP limiting does nothing against a handful of hosts, or one host
+     * behind a changing address.
+     */
+    scanDailyMax: Number(raw.SCAN_DAILY_MAX ?? 500),
     port: Number(raw.PORT ?? 8080),
   };
 }

@@ -14,6 +14,8 @@ describe('readEnv', () => {
       databaseUrl: ok.DATABASE_URL,
       jwtSecret: ok.JWT_SECRET,
       googleClientId: 'client',
+      scanPublic: false,
+      scanDailyMax: 500,
       geminiApiKey: 'gemini-key',
       port: 8080,
     });

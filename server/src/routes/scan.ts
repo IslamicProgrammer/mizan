@@ -17,6 +17,13 @@ const SCAN_BODY_LIMIT = 2 * 1024 * 1024;
  * this feature, and it costs money per call. */
 const RATE_LIMIT_MS = 10_000;
 
+/** Entries older than this cannot possibly still be rate-limiting anyone, and
+ * keeping them means a stream of requests from changing addresses grows this
+ * map until the process runs out of memory. */
+const RATE_LIMIT_PRUNE_MS = 60_000;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
  * POST /scan — the only thing that can silence the Fajr alarm besides the
  * ten-second hold-to-escape in the app.
@@ -32,10 +39,17 @@ const RATE_LIMIT_MS = 10_000;
  * rather than by a filter that could be bypassed or forgotten.
  */
 export async function scanRoutes(app: FastifyInstance) {
+  if (!ENV.scanPublic) {
+    app.log.warn('scan: SCAN_PUBLIC is not true, /scan is not registered');
+    return;
+  }
+
   // Scoped to this plugin registration, not module-level: a long-running
   // server gets one real limiter, while tests that register the route fresh
   // each time don't bleed rate-limit state across unrelated assertions.
   const lastCallAt = new Map<string, number>();
+  let dayStartedAt = Date.now();
+  let callsToday = 0;
 
   app.post('/scan', { bodyLimit: SCAN_BODY_LIMIT }, async (req, reply) => {
     const parsed = Body.safeParse(req.body);
@@ -44,11 +58,28 @@ export async function scanRoutes(app: FastifyInstance) {
     }
 
     const now = Date.now();
+
+    if (now - dayStartedAt >= DAY_MS) {
+      dayStartedAt = now;
+      callsToday = 0;
+    }
+    // Checked before the per-IP window, because the whole point of this ceiling
+    // is that it holds when the per-IP limit does not — several hosts, or one
+    // host whose address keeps changing.
+    if (callsToday >= ENV.scanDailyMax) {
+      req.log.warn({ callsToday }, 'scan: daily ceiling reached, refusing');
+      return reply.code(429).send({ error: 'daily limit reached' });
+    }
+
     const last = lastCallAt.get(req.ip);
     if (last !== undefined && now - last < RATE_LIMIT_MS) {
       return reply.code(429).send({ error: 'one scan per 10 seconds' });
     }
     lastCallAt.set(req.ip, now);
+    for (const [ip, at] of lastCallAt) {
+      if (now - at > RATE_LIMIT_PRUNE_MS) lastCallAt.delete(ip);
+    }
+    callsToday += 1;
 
     try {
       const match = await detectObject(parsed.data.image, parsed.data.target, ENV.geminiApiKey);

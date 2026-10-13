@@ -126,3 +126,27 @@ describe('POST /scan', () => {
     expect(second.statusCode).toBe(429);
   });
 });
+
+describe('POST /scan when SCAN_PUBLIC is not set', () => {
+  it('is not registered at all, so it cannot be called by accident', async () => {
+    vi.resetModules();
+    const prev = process.env.SCAN_PUBLIC;
+    delete process.env.SCAN_PUBLIC;
+    try {
+      const { scanRoutes } = await import('../routes/scan.js');
+      const Fastify = (await import('fastify')).default;
+      const app = Fastify();
+      await app.register(scanRoutes);
+      const res = await app.inject({
+        method: 'POST',
+        url: '/scan',
+        payload: { image: 'abc', target: 'mat' },
+      });
+      expect(res.statusCode).toBe(404);
+      await app.close();
+    } finally {
+      if (prev !== undefined) process.env.SCAN_PUBLIC = prev;
+      vi.resetModules();
+    }
+  });
+});
