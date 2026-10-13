@@ -2600,81 +2600,150 @@ git commit -m "feat(focus): list the real apps, and a switch to block them now"
 
 ---
 
-### Task 22: Fajr scan through Gemini, and the copy that has to change with it
+### Task 22: The Fajr scan, for real
 
-Added 9 Oct 2026. Decision D2 was resolved by the owner on 9 Oct: cloud Gemini,
-and the promise is rewritten. `alarm/scan.tsx` currently succeeds on a 3.2-second
-timer; `MOCK_DETECT_MS` is the whole recognition.
+Decision D2 was resolved by the owner on 9 Oct: cloud Gemini, and the promise is
+rewritten to match. UI shape specified by the owner on 13 Oct.
 
-**The copy change is not optional and ships in the same commit as the feature.**
-The app says, in two places, *"Rasm saqlanmaydi va hech qayerga yuborilmaydi"* —
-the image is not saved and not sent anywhere. Sending it to Gemini makes that
-false. Shipping the recognition without the new wording would make the app lie
-about the one subject it is loudest about.
+`alarm/scan.tsx` currently succeeds on a 3.2-second timer — `MOCK_DETECT_MS` is
+the entire recognition. This replaces it, and makes a successful scan the thing
+that actually silences the alarm.
 
-**The Gemini key never goes in the app.** Anything in `EXPO_PUBLIC_*` is
-compiled into the bundle and readable by anyone who downloads the APK. The phone
-uploads the frame to our own server, which holds the key.
+**The copy change ships in the same commit as the feature.** The app says, in two
+places, *"Rasm saqlanmaydi va hech qayerga yuborilmaydi"* — the image is not
+saved and not sent anywhere. Sending it to Gemini makes that false. Shipping the
+recognition without the new wording would make the app lie about the one subject
+it is loudest about.
+
+**The Gemini key never goes in the app.** Anything in `EXPO_PUBLIC_*` is compiled
+into the APK and readable by anyone who downloads it. The phone uploads the frame
+to our own server, which holds the key. It is on disk at `.secrets/gemini.key`,
+gitignored — read it into `server/.env` as `GEMINI_API_KEY`, never paste it into
+a file that is tracked.
 
 **Files:**
 - Create: `server/src/routes/scan.ts`, `server/src/scan/gemini.ts`
 - Test: `server/src/__tests__/scan.test.ts`
-- Modify: `mobile/src/app/alarm/scan.tsx`, `design-v3/11-scanobject.html`
-- Modify: `server/.env.example` (`GEMINI_API_KEY`)
+- Modify: `server/.env.example`
+- Rewrite: `mobile/src/app/alarm/scan.tsx`
+- Modify: `mobile/src/app/alarm/ringing.tsx`, `design-v3/11-scanobject.html`
 
-**Interfaces produced:**
-- `POST /scan` — authenticated, multipart or base64 JPEG, returns
-  `{ match: boolean; label?: string }`
+**Interfaces:**
+- `POST /scan` taking `{ image: string, target: 'mat' | 'sink' | 'both' }` where
+  `image` is a base64 JPEG, returning `{ match: boolean; label?: string }`
 
-- [ ] **Step 1: Write the failing server test**
+- [ ] **Step 1: Write the failing server tests**
 
 ```ts
-it('refuses an unauthenticated scan', async () => {
-  const res = await app.inject({ method: 'POST', url: '/scan', payload: { image: 'x' } });
-  expect(res.statusCode).toBe(401);
+it('rejects a body too large to be a camera frame', async () => {
+  const res = await app.inject({ method: 'POST', url: '/scan',
+    payload: { image: 'x'.repeat(3_000_000), target: 'mat' } });
+  expect(res.statusCode).toBe(413);
 });
 
-it('rejects a payload too large to be a camera frame', async () => {
-  // a 10MB body must be refused before it ever reaches Gemini
+it('rejects an unknown target', async () => {
+  const res = await app.inject({ method: 'POST', url: '/scan',
+    payload: { image: 'abc', target: 'bicycle' } });
+  expect(res.statusCode).toBe(400);
 });
 
 it('returns match:false rather than throwing when Gemini is unreachable', async () => {
-  // the alarm must still be dismissible when the network is down
+  // the caller is standing in the dark at 5am; a 500 here is a dead end
+});
+
+it('never logs or persists the image', async () => {
+  // spy on the logger and on fs; neither may see the base64 payload
 });
 ```
 
-That last one is the important one. The alarm fires at dawn, and a phone on poor
-rural signal or in airplane mode must not trap the user in a screen that cannot
-be satisfied. On any failure the scan falls back to the timer behaviour and the
-alarm can be dismissed.
+That last one is the promise, as a test. The new copy says the image is deleted
+immediately — that has to be true in code, not in a sentence.
 
-- [ ] **Step 2: Implement**
+- [ ] **Step 2: Run them and watch them fail**
 
-`gemini.ts` sends the frame with a prompt asking only whether the image contains
-a prayer mat or a bathroom sink, and parses a strict yes/no. Cap the request at
-one per 10 seconds per user and reject bodies over 2 MB. **Never write the image
-to disk and never log it** — the new copy promises it is deleted after matching,
-and that has to be true in code rather than in a sentence.
+Run: `cd server && npm test -- scan`
+Expected: FAIL — the route does not exist.
 
-- [ ] **Step 3: Rewrite the promise**
+- [ ] **Step 3: Implement the route**
+
+`gemini.ts` calls `gemini-2.5-flash` with the frame and a prompt that asks one
+question and permits one of two answers. The prompt depends on `target`:
+
+- `mat` → does this photograph contain a prayer mat (janamaz)?
+- `sink` → does this photograph contain a bathroom or kitchen sink?
+- `both` → does it contain either?
+
+Ask for a bare `yes` or `no` and treat anything else as `no`. A model that
+answers in a sentence must not be parsed as a match by accident.
+
+Cap the body at 2 MB and rate-limit to one call per 10 seconds per IP. The key
+goes in the `x-goog-api-key` header, never in the URL, so it stays out of logs
+and process listings.
+
+**Authentication is deliberately not required yet.** Task 8 has not landed, so no
+client can hold a token. Note it in the report; `/scan` must require a valid JWT
+the moment Task 8 ships, or it is an open endpoint that costs money per call.
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+- [ ] **Step 5: Rebuild the scan screen**
+
+The shape the owner asked for:
+
+- Full-bleed `CameraView`.
+- **Corner brackets**, not a full rectangle — four L-shaped marks at the corners
+  of a centred square frame, which reads as "aim here" without boxing the picture
+  in. White, ~3px, ~28px arms, with a soft shadow so they survive a bright
+  bathroom and a dark bedroom alike.
+- **A shutter button in the middle**, at the bottom: a filled circle inside a
+  ring, the standard camera idiom, at least 72px so it can be hit half-awake.
+- Above the frame, one line naming what to point at, from the user's own
+  onboarding choice — `TARGET_LABEL` already holds the three strings.
+- Below, the honest sentence from Step 7.
+
+States, all on the one screen, no navigation between them:
+- **idle** — brackets, shutter live
+- **sending** — shutter becomes a spinner, brackets pulse once; no fake progress
+  bar, because we do not know how long Gemini will take
+- **no match** — brackets flash amber, line reads
+  `Topilmadi. Yana bir marta urinib ko'ring.`, shutter returns. Never auto-retry:
+  a loop of silent failed uploads is the worst version of this.
+- **match** — brackets flash green, haptic success, then the alarm is dismissed
+
+Take the frame with `takePictureAsync({ quality: 0.5, base64: true, skipProcessing: true })`.
+Half quality is plenty for "is there a mat in this" and keeps the upload small on
+a rural connection.
+
+- [ ] **Step 6: Make the scan actually dismiss the alarm**
+
+This is the point of the feature. On `match: true`, stop the alarm and route to
+`/alarm/success`. On anything else the alarm keeps ringing.
+
+`ringing.tsx` already has a ten-second hold-to-escape, and it stays exactly as it
+is. It is the reason this gate is acceptable: a phone with no signal at dawn, or
+a model having a bad day, must never leave someone unable to silence their own
+alarm. Do not add a second escape and do not weaken this one.
+
+When the server cannot be reached, say so plainly — `Internetga ulanib
+bo'lmadi.` — and leave the shutter live. Do not silently pass the scan, and do
+not silently fail it either.
+
+- [ ] **Step 7: Rewrite the promise**
 
 In `mobile/src/app/alarm/scan.tsx` and `design-v3/11-scanobject.html`, replace
 *"Rasm saqlanmaydi va hech qayerga yuborilmaydi"* with:
 
 `Rasm tekshirish uchun serverga yuboriladi va darhol o'chiriladi. Hech qayerda saqlanmaydi.`
 
-*(The image is sent to the server for checking and deleted immediately. It is
-not stored anywhere.)*
+The design file changes too. This project's rule is that copy comes from the
+mockups, so a change that lands only in the app puts the two out of sync.
 
-The design file changes too — this project's rule is that copy comes from the
-mockups, so a change that lands only in the app puts them out of sync.
+- [ ] **Step 8: Note it for the privacy policy**
 
-- [ ] **Step 4: Note it for the privacy policy**
+The policy Task 13 links to must say the same. Record it in your report — Task 12
+cannot submit to Play with a policy that contradicts the app.
 
-The privacy policy Task 13 links to must say the same thing. Record this in your
-report; Task 12 cannot submit to Play with a policy that contradicts the app.
-
-- [ ] **Step 5: Gate and commit**
+- [ ] **Step 9: Gate and commit**
 
 ```bash
 cd server && npx tsc --noEmit && npm test
@@ -2683,7 +2752,9 @@ git add server/src server/.env.example mobile/src design-v3
 git commit -m "feat(scan): recognise the frame with Gemini, and say so plainly"
 ```
 
----
+Testing against a real phone: the server is not deployed, so point
+`EXPO_PUBLIC_API_URL` at the Mac's LAN address (`http://192.168.x.x:8080`) with
+both devices on the same Wi-Fi. Say in your report which address you used.
 
 ### Task 23: Lock mode, beside the reminder
 
