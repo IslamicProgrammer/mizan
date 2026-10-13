@@ -9,10 +9,10 @@
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "uz.mizan.app"
+      "bundleIdentifier": "uz.mizanapp.app"
     },
     "android": {
-      "package": "uz.mizan.app",
+      "package": "uz.mizanapp.app",
       "adaptiveIcon": {
         "backgroundColor": "#50320F",
         "foregroundImage": "./assets/android-icon-foreground.png",
