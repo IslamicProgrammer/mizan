@@ -1139,133 +1139,98 @@ git add -A && git commit -m "feat: account gate and best-effort sync against our
 
 ---
 
-### Task 9: Deploy to Contabo
+### Task 9: Deploy to Contabo with Dokploy
 
-**Files:**
-- Create: `server/Dockerfile`, `server/docker-compose.yml`, `server/Caddyfile`, `server/.env.example`, `server/deploy.md`
+Rewritten 13 Oct 2026. The owner has set up Contabo with **Dokploy**, which
+replaces most of what this task used to say. The original plan hand-rolled a
+`docker-compose` stack with Caddy terminating TLS and Postgres as a sibling
+container. Dokploy does all of that itself — Traefik, certificates, env vars,
+managed Postgres, deploy-on-push — so that work is deleted rather than adapted.
 
-**Interfaces:**
-- Produces: `https://api.mizanapp.uz/health` returning `{"ok":true}` over valid TLS.
+Two decisions made by the owner on 13 Oct: deploy from a **private GitHub
+repo**, and use **Dokploy's managed Postgres**.
 
-**`api.mizanapp.uz` must already resolve to the Contabo IP** — Caddy gets its
-certificate over HTTP-01 and will fail without it.
+**Prepared already (commit pending):** `server/Dockerfile` (two-stage, non-root,
+`--omit=dev`, health-checked on `/health`) and `server/.dockerignore`.
 
-- [ ] **Step 1: Write the Dockerfile**
+**Blocked on the owner:** the GitHub repo must exist and this repo must have a
+remote. Nothing here can run until then.
 
-```dockerfile
-FROM node:22-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+- [ ] **Step 1: Push the code**
 
-FROM node:22-alpine
-WORKDIR /app
-ENV NODE_ENV=production
-COPY package*.json ./
-RUN npm ci --omit=dev
-COPY --from=build /app/dist ./dist
-COPY migrations ./migrations
-EXPOSE 8080
-CMD ["node", "dist/index.js"]
-```
-
-- [ ] **Step 2: Write compose and Caddy**
-
-```yaml
-# server/docker-compose.yml
-services:
-  db:
-    image: postgres:16-alpine
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: mizan
-    volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      retries: 10
-
-  api:
-    build: .
-    restart: always
-    environment:
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/mizan
-      JWT_SECRET: ${JWT_SECRET}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-    depends_on:
-      db: { condition: service_healthy }
-
-  caddy:
-    image: caddy:2-alpine
-    restart: always
-    ports: ["80:80", "443:443"]
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddydata:/data
-    depends_on: [api]
-
-volumes: { pgdata: {}, caddydata: {} }
-```
-
-```
-# server/Caddyfile
-api.mizanapp.uz {
-  reverse_proxy api:8080
-}
-```
-
-Note that `api` and `db` publish **no ports** — only Caddy is reachable from the
-internet. Exposing Postgres on a public VPS is how a database gets wiped.
-
-- [ ] **Step 3: Put the real secrets on the server only**
+The repo has no remote and the code exists only on one Mac. Before pushing,
+confirm nothing sensitive is tracked — already audited on 13 Oct and clean:
+no `.env`, `.key`, keystore or `google-services.json` is tracked, the Gemini
+key appears nowhere in history, and no key-shaped string appears in any tracked
+file. Re-run that audit if anything has changed:
 
 ```bash
-# on the Contabo box, never in git
-cat > /opt/mizan/.env <<'EOF'
-POSTGRES_PASSWORD=<generate: openssl rand -base64 32>
-JWT_SECRET=<generate: openssl rand -base64 48>
-GOOGLE_CLIENT_ID=<from Google Cloud console, Android + Web client>
-EOF
-chmod 600 /opt/mizan/.env
+git ls-files | grep -iE "\.env$|\.key$|\.keystore$|\.jks$|google-services"
+git log -S"$(head -c 20 .secrets/gemini.key)" --oneline --all
 ```
 
-- [ ] **Step 4: Bring it up and verify TLS**
+Then add the remote the owner created and push `feat/android-release`.
+
+- [ ] **Step 2: Create the Postgres service in Dokploy**
+
+A managed Postgres in the same project. Dokploy gives an internal connection
+string — use the **internal** host, not a public one, so the database is never
+exposed to the internet. The migration runner creates the schema on first boot,
+so nothing needs seeding by hand.
+
+- [ ] **Step 3: Create the application**
+
+Source: the GitHub repo. **Build context `server/`**, Dockerfile
+`server/Dockerfile`. Port `8080`.
+
+- [ ] **Step 4: Set the environment**
+
+In Dokploy's env panel, never in the repo:
+
+| | |
+|---|---|
+| `DATABASE_URL` | the internal string from Step 2 |
+| `JWT_SECRET` | `openssl rand -base64 48` — **at least 32 characters**, the loader refuses shorter and the server will not boot |
+| `GOOGLE_CLIENT_ID` | the Web client ID from Task 8 |
+| `GEMINI_API_KEY` | from `.secrets/gemini.key` |
+| `SCAN_PUBLIC` | `true` only when the Fajr scan should be reachable |
+| `SCAN_DAILY_MAX` | leave unset for 500 |
+| `PORT` | `8080` |
+
+`SCAN_PUBLIC` is the one to think about. `/scan` has no authentication until
+Task 8 lands, and every call spends a Gemini request. It fails closed on
+purpose: deploying without setting it publishes nothing.
+
+- [ ] **Step 5: Domain and TLS**
+
+Point a hostname at the app in Dokploy and let it issue the certificate. If
+`mizanapp.uz` is still not bought, Dokploy's generated subdomain works for
+testing and the mobile app's `EXPO_PUBLIC_API_URL` points at it.
+
+Whatever the final hostname is, it goes in `mobile/.env` **and** in the Play
+listing's privacy policy URL, which must agree with the app.
+
+- [ ] **Step 6: Check it is actually up**
 
 ```bash
-ssh contabo 'cd /opt/mizan && docker compose up -d --build'
-curl -s https://api.mizanapp.uz/health
-```
-Expected: `{"ok":true}` with a valid certificate — check `curl -v` shows no TLS warning.
-
-- [ ] **Step 5: Verify it survives a reboot**
-
-```bash
-ssh contabo 'sudo reboot' && sleep 60 && curl -s https://api.mizanapp.uz/health
-```
-Expected: `{"ok":true}`. `restart: always` is the only thing making this true.
-
-- [ ] **Step 6: Verify a database backup exists before any real user does**
-
-```bash
-ssh contabo 'docker compose exec -T db pg_dump -U postgres mizan | gzip > /opt/mizan/backups/$(date +%F).sql.gz'
-```
-Add it to cron, daily. A garden that took someone two months to grow has no
-other copy once sync is live.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add server && git commit -m "ops: dockerised deploy with caddy TLS on contabo"
+curl -s https://<host>/health          # {"ok":true}
+curl -s -X POST https://<host>/auth/google \
+  -H 'content-type: application/json' -d '{"idToken":"nope"}' -w ' %{http_code}\n'
 ```
 
-## Phase 2 — Notifications that actually fire
+Expect `{"ok":true}` and a `401` with `{"error":"invalid token"}`. The second
+proves the route is live and refusing bad input, rather than merely reachable.
 
-This is the last blocker on the clock. Google checks testers *used* the app; a
-prayer app nobody is reminded to open is a prayer app nobody uses. It is also
-Review Focus #2 — the failure that makes the product pointless.
+Then confirm the database is **not** reachable from outside: a connection
+attempt to the Postgres port from off the box must fail. Dokploy keeps managed
+services on an internal network, but confirm rather than assume — this is the
+check that catches a misconfigured port mapping before someone else does.
+
+- [ ] **Step 7: Point the app at it**
+
+Set `EXPO_PUBLIC_API_URL` in `mobile/.env` to the deployed host and rebuild the
+APK. Until then the app talks to a laptop on the owner's Wi-Fi, which is why
+the Fajr scan only works at home.
 
 ### Task 10: Schedule prayer notifications
 
