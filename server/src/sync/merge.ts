@@ -3,9 +3,26 @@
  * it and will never send one. That absence is not a gap to fill in — it is
  * the signal that tells the merge "this device cannot express a correction,
  * fall back to the old monotonic rule for it."
+ *
+ * `prayers` is optional for the same reason, plus one more: even a current
+ * client writes it only for a day it actually tracked prayer-by-prayer. A
+ * bare count with no `prayers` array is not missing data to reconstruct —
+ * guessing which prayers it represented would fabricate exactly what this
+ * project exists to stop doing.
  */
-export type DayRecord = { kept: number; rest?: boolean; updatedAt?: number };
+export type DayRecord = { kept: number; rest?: boolean; prayers?: PrayerId[]; updatedAt?: number };
 export type History = Record<string, DayRecord>;
+
+/**
+ * The five daily prayers a `DayRecord` can name. Kept as the server's own
+ * list rather than imported from the mobile app — the two packages ship
+ * independently, and a day record arriving over HTTP is untrusted input
+ * either way, so this has to be checked here regardless of what the client
+ * believes `PrayerId` is. `'sunrise'` is deliberately absent: it marks the
+ * end of the Fajr window, not a prayer anyone keeps.
+ */
+const FIVE_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
+type PrayerId = (typeof FIVE_PRAYERS)[number];
 
 /**
  * Five daily prayers, so no honest day exceeds it. The ceiling matters because
@@ -41,6 +58,13 @@ function isDayRecord(value: unknown): value is DayRecord {
   const r = value as Record<string, unknown>;
   if (typeof r.kept !== 'number' || !Number.isFinite(r.kept) || r.kept < 0) return false;
   if ('rest' in r && typeof r.rest !== 'boolean') return false;
+  // Only the shape is checked here — an array of strings. Which strings are
+  // actually one of the five, deduplicated, and within `kept`'s ceiling is
+  // `sanitize`'s job below, same division of labour as `kept`'s own
+  // floor-and-clamp.
+  if ('prayers' in r && (!Array.isArray(r.prayers) || !r.prayers.every((p) => typeof p === 'string'))) {
+    return false;
+  }
   // An invalid timestamp is worse than a missing one: a missing one falls
   // back to the monotonic rule, but a garbage one (NaN, a negative, a
   // string) could let a device win a whole-record overwrite it never earned.
@@ -73,6 +97,17 @@ function sanitize(history: History): { history: History; dropped: string[] } {
     const kept = Math.min(Math.floor(value.kept), MAX_KEPT);
     const rec: DayRecord = { kept };
     if (value.rest !== undefined) rec.rest = value.rest;
+    if (value.prayers !== undefined) {
+      // Drop anything that isn't one of the five (an unknown id, or
+      // `'sunrise'`, which is a slot but not a prayer), remove duplicates,
+      // and clamp to `kept` — a client cannot name more prayers than its own
+      // count admits to keeping.
+      const known = [...new Set(value.prayers)].filter((p): p is PrayerId =>
+        (FIVE_PRAYERS as readonly string[]).includes(p),
+      );
+      const prayers = known.slice(0, kept);
+      if (prayers.length > 0) rec.prayers = prayers;
+    }
     if (value.updatedAt !== undefined) {
       // A timestamp from the future would win every merge forever, so it is pinned to
       // now — the same reason `kept` is capped at five. A clock that is merely a
@@ -135,15 +170,18 @@ export function mergeHistoryWithDrops(local: History, remote: History): { histor
  * rediscovering it from a bug report.
  *
  * The per-date comparator. A record with a timestamp is a device telling us
- * "this is the true state of this day as of this moment" — count and rest
- * flag together, as one statement, not two fields to reconcile separately.
- * Splitting them (say, taking the newer count but OR-ing the old rest flag)
- * would let the stale side's rest flag survive a correction that was
- * supposed to clear it, which is exactly the bug this function exists to
- * fix. So when both sides have a timestamp, the strictly newer one wins
- * whole. When only one side has a timestamp, that side is the only one
- * capable of expressing a correction at all, so it wins whole regardless of
- * the untimestamped side's count. When neither has one — the common case
+ * "this is the true state of this day as of this moment" — count, rest flag
+ * and `prayers` together, as one statement, not fields to reconcile
+ * separately. Splitting them (say, taking the newer count but OR-ing the old
+ * rest flag, or the old `prayers`) would let a stale side's fact survive a
+ * correction that was supposed to replace it — e.g. a user who un-marks a
+ * mis-tapped Asr must see that prayer actually leave the array, not just see
+ * `kept` drop while the stale `prayers` entry lingers. That is exactly the
+ * bug this function exists to fix. So when both sides have a timestamp, the
+ * strictly newer one wins whole. When only one side has a timestamp, that
+ * side is the only one capable of expressing a correction at all, so it
+ * wins whole regardless of the untimestamped side's count. When neither has
+ * one — the common case
  * while old clients are still in the field — fall back to the monotonic
  * rule. Equal timestamps also fall back to the monotonic rule rather than
  * picking either argument, specifically so the result never depends on
@@ -168,8 +206,15 @@ function mergeDay(a: DayRecord, b: DayRecord): DayRecord {
  * claim a precision about "when" that never existed.
  */
 function monotonic(a: DayRecord, b: DayRecord, updatedAt?: number): DayRecord {
-  const kept = Math.max(a.kept, b.kept);
+  // The union, not an intersection or either side alone: each side's
+  // `prayers` is a true positive (that device really did see it kept), so
+  // dropping one would discard a real fact. It cannot invent a sixth kind of
+  // fact, though — the result only ever contains ids at least one side
+  // actually reported.
+  const prayers = [...new Set([...(a.prayers ?? []), ...(b.prayers ?? [])])];
+  const kept = Math.max(a.kept, b.kept, prayers.length);
   const rec: DayRecord = a.rest || b.rest ? { kept, rest: true } : { kept };
+  if (prayers.length > 0) rec.prayers = prayers;
   if (updatedAt !== undefined) rec.updatedAt = updatedAt;
   return rec;
 }

@@ -1,4 +1,4 @@
-import { consistency, longestStreak, monthTotals } from '../stats';
+import { consistency, longestStreak, monthTotals, perPrayer, type History } from '../stats';
 
 const h = {
   '2026-10-01': { kept: 5 },
@@ -128,5 +128,32 @@ describe('consistency', () => {
       '2026-10-01',
     );
     expect(bars.find((b) => b.key === '2')?.warn).toBe(true);
+  });
+});
+
+describe('perPrayer', () => {
+  const ph: History = {
+    '2026-10-01': { kept: 5, prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] },
+    '2026-10-02': { kept: 4, prayers: ['dhuhr', 'asr', 'maghrib', 'isha'] },
+    '2026-10-03': { kept: 0, rest: true },
+    '2026-10-04': { kept: 2 },
+  };
+
+  it('reports each prayer over the days that actually recorded one', () => {
+    const r = perPrayer(ph, new Date('2026-10-01'), new Date('2026-10-04'), '2026-10-01');
+    const fajr = r.find((x) => x.key === 'fajr');
+    // Oct 1 kept it, Oct 2 did not. Oct 3 is a rest day and owes nothing.
+    // Oct 4 has a count but no `prayers`, so it cannot say anything about Fajr.
+    expect(fajr).toEqual({ key: 'fajr', pct: 50, days: 2 });
+  });
+
+  it('never reports sunrise, which is not a prayer', () => {
+    const r = perPrayer(ph, new Date('2026-10-01'), new Date('2026-10-04'), '2026-10-01');
+    expect(r.map((x) => x.key)).toEqual(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']);
+  });
+
+  it('returns zero days rather than NaN when nothing has been recorded', () => {
+    const r = perPrayer({}, new Date('2026-10-01'), new Date('2026-10-04'), undefined);
+    expect(r.every((x) => x.pct === 0 && x.days === 0)).toBe(true);
   });
 });

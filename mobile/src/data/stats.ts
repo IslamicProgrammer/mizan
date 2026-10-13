@@ -15,7 +15,9 @@
  * entry to iterate over in the first place.
  */
 
-export type DayRecord = { kept: number; rest?: boolean; updatedAt?: number };
+import { FIVE, type PrayerId } from './prayer';
+
+export type DayRecord = { kept: number; rest?: boolean; prayers?: PrayerId[]; updatedAt?: number };
 export type History = Record<string, DayRecord>;
 
 const FIVE_PER_DAY = 5;
@@ -131,6 +133,56 @@ export function consistency(
     cursor.setDate(cursor.getDate() + 1);
   }
   return out;
+}
+
+/**
+ * Per-prayer consistency between `from` and `to`, inclusive — the figure
+ * `consistency` cannot produce because a daily count alone cannot say which
+ * prayer was missed.
+ *
+ * A day counts toward every prayer's denominator together, not one prayer at
+ * a time: the presence of `prayers` is what makes a day *known* at all, and
+ * once it's known, an absence from the array is a definite "not kept" for
+ * that prayer, exactly as real as a presence in it. A day with no `prayers`
+ * array — a legacy record, or one only ever touched by a plain `repairDay()`
+ * with no prayer named — cannot say anything about any individual prayer, so
+ * it is skipped for all five rather than guessed at; that would fabricate the
+ * exact thing this project keeps removing. Rest days and days outside the
+ * owed window (before `startedAt`, or after today) are skipped the same way
+ * `consistency` skips them, for the same reason: nothing was due.
+ */
+export function perPrayer(
+  history: History,
+  from: Date,
+  to: Date,
+  startedAt?: string,
+): { key: PrayerId; pct: number; days: number }[] {
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  const clampedEnd = end > todayMid ? todayMid : end;
+  const earliest = startedAt ?? Object.keys(history).sort()[0];
+
+  const counts: Record<PrayerId, number> = { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 };
+  let days = 0;
+
+  const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  while (cursor <= clampedEnd) {
+    const key = keyOf(cursor);
+    const owed = !earliest || key >= earliest;
+    const rec = history[key];
+    if (owed && rec && !rec.rest && rec.prayers) {
+      days += 1;
+      for (const p of rec.prayers) if (FIVE.includes(p)) counts[p] += 1;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return FIVE.map((key) => ({
+    key,
+    pct: days > 0 ? Math.round((counts[key] / days) * 100) : 0,
+    days,
+  }));
 }
 
 /**

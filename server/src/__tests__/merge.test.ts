@@ -124,6 +124,53 @@ describe('mergeHistory with updatedAt', () => {
   });
 });
 
+describe('mergeHistory with prayers', () => {
+  it('drops an id that is not one of the five', () => {
+    const local = { '2026-10-01': { kept: 1, prayers: ['fajr', 'tarawih'] } } as unknown as History;
+    expect(mergeHistory(local, {})).toEqual({ '2026-10-01': { kept: 1, prayers: ['fajr'] } });
+  });
+
+  it('drops sunrise, which is a slot but not a prayer', () => {
+    const local = { '2026-10-01': { kept: 1, prayers: ['sunrise'] } } as unknown as History;
+    expect(mergeHistory(local, {})).toEqual({ '2026-10-01': { kept: 1 } });
+  });
+
+  it('removes duplicates within one side', () => {
+    const local = { '2026-10-01': { kept: 1, prayers: ['fajr', 'fajr'] } } as unknown as History;
+    expect(mergeHistory(local, {})).toEqual({ '2026-10-01': { kept: 1, prayers: ['fajr'] } });
+  });
+
+  it('unions both sides in the monotonic path, raising kept to match', () => {
+    // Neither side has a timestamp, so the monotonic rule applies: each
+    // side's named prayer is a real fact, so the union keeps both, and
+    // `kept` rises to at least the union's size even though neither side's
+    // own count claimed that many.
+    const local = { '2026-10-01': { kept: 1, prayers: ['fajr'] } } as unknown as History;
+    const remote = { '2026-10-01': { kept: 1, prayers: ['asr'] } } as unknown as History;
+    expect(mergeHistory(local, remote)).toEqual({
+      '2026-10-01': { kept: 2, prayers: ['fajr', 'asr'] },
+    });
+  });
+
+  it('lets a newer record replace an older one\'s prayers wholesale, not merge them', () => {
+    // If the newer record carries no `prayers` for this day — the user
+    // un-marked everything and it rolled over bare — the old array must not
+    // survive by being merged back in.
+    const older = { kept: 3, prayers: ['fajr', 'dhuhr', 'asr'], updatedAt: 1_000 } as unknown as History[string];
+    const newer = { kept: 0, updatedAt: 2_000 };
+    expect(mergeHistory({ '2026-10-01': newer }, { '2026-10-01': older }))
+      .toEqual({ '2026-10-01': newer });
+  });
+
+  it('clamps prayers to kept during sanitize', () => {
+    const local = {
+      '2026-10-01': { kept: 1, prayers: ['fajr', 'asr', 'maghrib'] },
+    } as unknown as History;
+    const { history } = mergeHistoryWithDrops(local, {});
+    expect(history['2026-10-01']!.prayers!.length).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('sanitize clamps updatedAt to now', () => {
   it('pins a year-9999 timestamp to now instead of letting it win merges forever', () => {
     vi.useFakeTimers();

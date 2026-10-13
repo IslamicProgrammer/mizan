@@ -40,8 +40,17 @@ export type PrayerMark = 'done' | 'late' | 'qaza' | null;
  * taking the higher count. It is optional because an install that predates
  * this field will never set it, and must keep syncing exactly as it does
  * today.
+ *
+ * `prayers` names which of the five were actually kept, so a stats screen can
+ * say *which* prayer keeps slipping rather than only a nightly total. It is
+ * optional and `kept` stays authoritative for the count — `prayers.length <=
+ * kept`, never `===`, because a generic repair (`repairDay` with no prayer
+ * named) has to be able to raise the count without claiming to know which
+ * prayer it was for. A record written before this field existed has none,
+ * and must not be guessed at: that is exactly the fabricated-numbers defect
+ * this app has spent days removing.
  */
-export type DayRecord = { kept: number; rest?: boolean; updatedAt?: number };
+export type DayRecord = { kept: number; rest?: boolean; prayers?: PrayerId[]; updatedAt?: number };
 
 export const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -192,8 +201,10 @@ const EMPTY_MARKS: Record<PrayerId, PrayerMark> = {
   fajr: null, sunrise: null, dhuhr: null, asr: null, maghrib: null, isha: null,
 };
 
-const keptIn = (m: Record<PrayerId, PrayerMark>) =>
-  FIVE.filter((p) => m[p] === 'done' || m[p] === 'late').length;
+const keptPrayers = (m: Record<PrayerId, PrayerMark>) =>
+  FIVE.filter((p) => m[p] === 'done' || m[p] === 'late');
+
+const keptIn = (m: Record<PrayerId, PrayerMark>) => keptPrayers(m).length;
 
 /**
  * Close out any day that has ended.
@@ -223,7 +234,7 @@ function rollOver(state: State): State {
       // this now-archived day can still win against it.
       [state.marksDate]: state.settings.cycleMode
         ? { kept: 0, rest: true, updatedAt }
-        : { kept: keptIn(state.marks), updatedAt },
+        : { kept: keptIn(state.marks), prayers: keptPrayers(state.marks), updatedAt },
     },
     marks: { ...EMPTY_MARKS },
     marksDate: today,
@@ -247,7 +258,7 @@ type Store = State & {
    * blank to be ashamed of, it is something you can still repair — and here the
    * repair is a real act, a qaza prayer actually made up.
    */
-  repairDay: (date: string) => void;
+  repairDay: (date: string, prayer?: PrayerId) => void;
   /** consecutive days with at least one prayer, rest days not breaking it */
   streak: number;
   setTasbih: (t: { count: number; targetIdx: number }) => void;
@@ -438,14 +449,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           // rather than a second guard no caller can reach today.
           qaza: { ...s.qaza, [id]: Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0 },
         })),
-      repairDay: (date) =>
+      repairDay: (date, prayer) =>
         setState((s) => {
           const cur = s.history[date] ?? { kept: 0 };
           if (cur.rest || cur.kept >= 5) return s;
-          return {
-            ...s,
-            history: { ...s.history, [date]: { ...cur, kept: cur.kept + 1, updatedAt: Date.now() } },
-          };
+          // Naming a prayer is optional — the garden calls this with none,
+          // raising the count without claiming to know which prayer it was
+          // for. `'sunrise'` is excluded even though it is a `PrayerId`: it
+          // marks the end of the Fajr window, not a prayer anyone can repair.
+          const next: DayRecord = { ...cur, kept: cur.kept + 1, updatedAt: Date.now() };
+          if (prayer && FIVE.includes(prayer) && !cur.prayers?.includes(prayer)) {
+            next.prayers = [...(cur.prayers ?? []), prayer];
+          }
+          return { ...s, history: { ...s.history, [date]: next } };
         }),
       addFocusMinutes: (n) =>
         setState((s) => {

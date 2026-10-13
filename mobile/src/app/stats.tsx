@@ -3,10 +3,10 @@ import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Bars, Empty, Label, Ring, Screen, Segment, Tiles } from '../components/ui';
-import { FIVE, MONTHS_UZ, timesFor } from '../data/prayer';
-import { consistency, monthTotals } from '../data/stats';
+import { FIVE, MONTHS_UZ, PRAYER_NAMES, timesFor } from '../data/prayer';
+import { consistency, monthTotals, perPrayer } from '../data/stats';
 import { useStore } from '../data/store';
-import { font, layout, lift, size } from '../design/tokens';
+import { color, font, layout, lift, size } from '../design/tokens';
 
 export default function Stats() {
   const [range, setRange] = useState(1);
@@ -38,6 +38,12 @@ export default function Stats() {
   // need to know the install date to avoid showing a fabricated-looking run
   // of missed prayers.
   const bars = consistency(historyWithToday, weekAgo, now, startedAt);
+
+  // All five share one denominator — the days that actually recorded which
+  // prayers were kept, not just how many — so any entry's `days` tells the
+  // whole chart's.
+  const perPrayerRows = perPrayer(historyWithToday, weekAgo, now, startedAt);
+  const knownDays = perPrayerRows[0]?.days ?? 0;
 
   return (
     <Screen glow="soft" pad={false}>
@@ -73,6 +79,31 @@ export default function Stats() {
       )}
 
       <View style={s.gap} />
+      <Label>Har bir namoz</Label>
+      {/* A day with no record is not a failure (the Task 15 rule) — the same
+          guard `bars` uses above, applied here per-prayer instead of per-day. */}
+      {knownDays === 0 ? (
+        <Empty
+          icon="calendar"
+          title="Hali ma'lumot yo'q"
+          body="Qaysi namoz tez-tez qolib ketayotganini ko'rish uchun bir necha kun belgilang."
+        />
+      ) : (
+        <>
+          <Bars
+            items={perPrayerRows.map((p) => ({
+              key: PRAYER_NAMES[p.key],
+              pct: p.pct,
+              warn: p.pct < 80,
+            }))}
+          />
+          {knownDays < 7 ? (
+            <Text style={s.lowDays}>so'nggi {knownDays} kun asosida</Text>
+          ) : null}
+        </>
+      )}
+
+      <View style={s.gap} />
       <Tiles items={[{ value: String(streak), label: 'kunlik Bomdod' }]} />
     </Screen>
   );
@@ -103,4 +134,11 @@ const s = StyleSheet.create({
   },
   ringTitle: { fontFamily: font.extrabold, fontSize: size.body, color: '#40290C' },
   ringSub: { fontFamily: font.semibold, fontSize: 12.5, color: '#8A5A11', marginTop: 3 },
+  lowDays: {
+    marginTop: 8,
+    marginHorizontal: layout.gutter,
+    fontFamily: font.medium,
+    fontSize: size.tiny,
+    color: color.inkSoft,
+  },
 });

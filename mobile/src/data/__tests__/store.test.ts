@@ -136,7 +136,7 @@ describe('rollOver', () => {
 
     // Roll-over ran during hydrate, because the saved day is not today, and
     // it must carry 5_000 forward rather than stamping "now".
-    expect(store.current().history['2026-10-01']).toEqual({ kept: 1, updatedAt: 5_000 });
+    expect(store.current().history['2026-10-01']).toEqual({ kept: 1, prayers: ['fajr'], updatedAt: 5_000 });
   });
 
   it('falls back to now when marksUpdatedAt is absent', async () => {
@@ -152,7 +152,7 @@ describe('rollOver', () => {
 
     const store = await mountStore();
 
-    expect(store.current().history['2026-10-01']).toEqual({ kept: 1, updatedAt: Date.now() });
+    expect(store.current().history['2026-10-01']).toEqual({ kept: 1, prayers: ['fajr'], updatedAt: Date.now() });
   });
 });
 
