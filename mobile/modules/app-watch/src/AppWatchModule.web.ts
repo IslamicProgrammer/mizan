@@ -34,6 +34,21 @@ class AppWatchModule extends NativeModule<{}> {
   isFocusRunning(): boolean {
     return false;
   }
+  scheduleFajrAlarm(_atEpochMs: number): void {}
+  scheduleTestAlarm(_atEpochMs: number): void {}
+  cancelFajrAlarm(): void {}
+  canScheduleExact(): boolean {
+    return false;
+  }
+  requestExactAlarmPermission(): void {}
+  nextFajrAlarmAt(): number | null {
+    return null;
+  }
+  stopAlarmSound(): void {}
+  isIgnoringBatteryOptimizations(): boolean {
+    return false;
+  }
+  requestIgnoreBatteryOptimizations(): void {}
 }
 
 export default registerWebModule(AppWatchModule, 'AppWatchModule');

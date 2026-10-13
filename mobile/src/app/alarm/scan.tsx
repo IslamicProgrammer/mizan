@@ -7,6 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
+import { stopAlarmSound } from '../../../modules/app-watch';
 import { Button } from '../../components/ui';
 import { getEnv } from '../../data/env';
 import { useStore } from '../../data/store';
@@ -95,6 +96,10 @@ export default function Scan() {
       const match = res.ok && ((await res.json()) as { match?: boolean }).match === true;
 
       if (match) {
+        // The native half of this escape, same as `ringing.tsx`'s ten-second
+        // hold -- stops `AlarmService`'s sound and releases its wake lock.
+        // Idempotent, so this is harmless when nothing is actually ringing.
+        stopAlarmSound();
         setScanState('match');
         pulseOnce();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

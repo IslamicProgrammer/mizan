@@ -132,6 +132,32 @@ async function ensurePermission(N: NotificationsModule): Promise<boolean> {
 }
 
 /**
+ * Whether notifications are currently granted -- exported for
+ * `settings/alarm.tsx` (task 24) to show the real state of `POST_NOTIFICATIONS`
+ * rather than assuming its own `fajrAlarm` toggle implies anything about a
+ * permission it does not control. `false` wherever `load()` is, including
+ * Expo Go on Android and the web.
+ */
+export async function notificationsGranted(): Promise<boolean> {
+  const N = await load();
+  if (!N) return false;
+  const status = await N.getPermissionsAsync();
+  return status.status === 'granted';
+}
+
+/**
+ * Re-asks for notification permission -- the same rule `ensurePermission`
+ * already applies for prayer-time notifications. A hard "don't ask again"
+ * from the OS cannot be re-prompted; the caller (settings/alarm.tsx) falls
+ * back to `Linking.openSettings()` itself when this resolves `false`.
+ */
+export async function requestNotificationPermission(): Promise<boolean> {
+  const N = await load();
+  if (!N) return false;
+  return ensurePermission(N);
+}
+
+/**
  * Cancels whatever this app previously scheduled and lays down a fresh
  * window. Cancel-then-reschedule, always in that order and never the
  * reverse, is what keeps a user who opens the app daily from accumulating

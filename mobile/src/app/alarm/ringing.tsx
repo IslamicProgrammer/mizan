@@ -15,6 +15,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
+import { stopAlarmSound } from '../../../modules/app-watch';
 import { ICONS } from '../../data/icons';
 import { hhmm, timesFor } from '../../data/prayer';
 import { useStore } from '../../data/store';
@@ -126,7 +127,14 @@ export default function Ringing() {
             held.current = Date.now();
           }}
           onPressOut={() => {
-            if (held.current && Date.now() - held.current >= ESCAPE_MS) router.replace('/home');
+            if (held.current && Date.now() - held.current >= ESCAPE_MS) {
+              // The native half of this escape: stops `AlarmService`'s sound
+              // and releases its wake lock. Idempotent, so this is safe even
+              // when this screen was opened from the "sinab ko'rish" test
+              // button or no alarm is actually ringing.
+              stopAlarmSound();
+              router.replace('/home');
+            }
             held.current = null;
           }}
           style={s.esc}

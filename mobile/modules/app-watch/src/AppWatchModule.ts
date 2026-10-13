@@ -14,6 +14,15 @@ declare class AppWatchModule extends NativeModule<{}> {
   startFocus(blocked: string[], endsAt: number, mode: BlockMode): void;
   stopFocus(): void;
   isFocusRunning(): boolean;
+  scheduleFajrAlarm(atEpochMs: number): void;
+  scheduleTestAlarm(atEpochMs: number): void;
+  cancelFajrAlarm(): void;
+  canScheduleExact(): boolean;
+  requestExactAlarmPermission(): void;
+  nextFajrAlarmAt(): number | null;
+  stopAlarmSound(): void;
+  isIgnoringBatteryOptimizations(): boolean;
+  requestIgnoreBatteryOptimizations(): void;
 }
 
 export default requireNativeModule<AppWatchModule>('AppWatch');

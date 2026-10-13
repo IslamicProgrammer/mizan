@@ -27,6 +27,15 @@ interface AppWatchNative {
   startFocus(blocked: string[], endsAt: number, mode: BlockMode): void;
   stopFocus(): void;
   isFocusRunning(): boolean;
+  scheduleFajrAlarm(atEpochMs: number): void;
+  scheduleTestAlarm(atEpochMs: number): void;
+  cancelFajrAlarm(): void;
+  canScheduleExact(): boolean;
+  requestExactAlarmPermission(): void;
+  nextFajrAlarmAt(): number | null;
+  stopAlarmSound(): void;
+  isIgnoringBatteryOptimizations(): boolean;
+  requestIgnoreBatteryOptimizations(): void;
 }
 
 let native: AppWatchNative | null = null;
@@ -114,4 +123,69 @@ export function stopFocus(): void {
 
 export function isFocusRunning(): boolean {
   return native?.isFocusRunning() ?? false;
+}
+
+/**
+ * Arms the real Fajr alarm for exactly `atEpochMs` -- a precise epoch
+ * `data/alarm.ts` computes with `adhan`, never recomputed natively (see
+ * `FajrAlarmTime.kt`'s doc for why there are deliberately not two
+ * implementations of that calculation). A no-op everywhere but Android, and
+ * a silent refusal on Android itself if `atEpochMs` is not strictly in the
+ * future or exact alarms are not permitted -- callers must check
+ * `canScheduleExact()` themselves rather than read "I called this" as "it
+ * is now scheduled".
+ */
+export function scheduleFajrAlarm(atEpochMs: number): void {
+  native?.scheduleFajrAlarm(atEpochMs);
+}
+
+/**
+ * "Signalni sinab ko'rish" in settings/alarm.tsx -- the same chain as
+ * `scheduleFajrAlarm`, under a separate native request code, so it can
+ * never cancel, overwrite, or reschedule the real alarm `scheduleFajrAlarm`
+ * armed. See `AlarmScheduler.kt`.
+ */
+export function scheduleTestAlarm(atEpochMs: number): void {
+  native?.scheduleTestAlarm(atEpochMs);
+}
+
+export function cancelFajrAlarm(): void {
+  native?.cancelFajrAlarm();
+}
+
+/** Whether the system will currently let this app schedule an exact alarm.
+ * Always false off Android -- there is nothing to schedule exactly there. */
+export function canScheduleExact(): boolean {
+  return native?.canScheduleExact() ?? false;
+}
+
+/** Opens `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM`; a no-op where
+ * there is nothing to open (pre-Android 12, or off Android entirely). */
+export function requestExactAlarmPermission(): void {
+  native?.requestExactAlarmPermission();
+}
+
+/** What the system actually has armed for the real alarm, read back rather
+ * than recomputed in JS -- `settings/alarm.tsx` shows this, not its own
+ * guess, so the two can never quietly disagree. `null` when nothing is
+ * armed, including on every platform without the module. */
+export function nextFajrAlarmAt(): number | null {
+  return native?.nextFajrAlarmAt() ?? null;
+}
+
+/** Stops the ringing alarm -- the native half of `ringing.tsx`'s
+ * ten-second escape and `scan.tsx`'s successful match. Idempotent: calling
+ * this when nothing is ringing is a no-op, never an error. */
+export function stopAlarmSound(): void {
+  native?.stopAlarmSound();
+}
+
+export function isIgnoringBatteryOptimizations(): boolean {
+  return native?.isIgnoringBatteryOptimizations() ?? false;
+}
+
+/** Opens `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`; a no-op off
+ * Android. */
+export function requestIgnoreBatteryOptimizations(): void {
+  native?.requestIgnoreBatteryOptimizations();
 }

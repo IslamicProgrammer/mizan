@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Base64
 import expo.modules.kotlin.modules.Module
@@ -169,6 +170,86 @@ class AppWatchModule : Module() {
 
     Function("isFocusRunning") {
       FocusService.isRunning
+    }
+
+    // Task 24: the Fajr alarm. `atEpochMs` arrives as a JS `number`; same
+    // `Long` reasoning as `startFocus`'s `endsAt` above. Both schedule
+    // Functions are void from JS's side (see the "void function" note on
+    // `requestUsageAccess` above) -- `AlarmScheduler` reports success only
+    // to its own caller inside this module, never across the bridge, so a
+    // refusal (a past timestamp, exact alarms denied) is never something
+    // JS could mistake for "scheduled".
+    Function("scheduleFajrAlarm") { atEpochMs: Long ->
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        AlarmScheduler.schedule(ctx, atEpochMs)
+      }
+    }
+
+    // "Signalni sinab ko'rish" in settings/alarm.tsx -- same chain as the
+    // real alarm, a separate request code (see `AlarmScheduler`'s doc) so
+    // it can never cancel or overwrite the real one.
+    Function("scheduleTestAlarm") { atEpochMs: Long ->
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        AlarmScheduler.scheduleTest(ctx, atEpochMs)
+      }
+    }
+
+    Function("cancelFajrAlarm") {
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        AlarmScheduler.cancel(ctx)
+      }
+    }
+
+    Function("canScheduleExact") {
+      val ctx = appContext.reactContext ?: return@Function false
+      AlarmScheduler.canScheduleExact(ctx)
+    }
+
+    Function("requestExactAlarmPermission") {
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        AlarmScheduler.requestExactAlarmPermission(ctx)
+      }
+    }
+
+    // Read back from what the system actually has armed, not recomputed in
+    // JS -- settings/alarm.tsx shows this, not its own guess, so the two
+    // can never quietly disagree about when the alarm will really ring.
+    Function("nextFajrAlarmAt") {
+      val ctx = appContext.reactContext ?: return@Function null
+      AlarmScheduler.nextFajrAlarmAt(ctx)
+    }
+
+    // Called from `ringing.tsx`'s ten-second escape and `scan.tsx`'s
+    // successful match -- the only two places the alarm is ever meant to
+    // stop. A no-op if `AlarmService` already stopped itself (its own
+    // 10-minute cap), same idempotence promise as `stopFocus` above.
+    Function("stopAlarmSound") {
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        ctx.stopService(Intent(ctx, AlarmService::class.java))
+      }
+    }
+
+    Function("isIgnoringBatteryOptimizations") {
+      val ctx = appContext.reactContext ?: return@Function false
+      val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
+      pm.isIgnoringBatteryOptimizations(ctx.packageName)
+    }
+
+    Function("requestIgnoreBatteryOptimizations") {
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        val intent = Intent(
+          Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+          Uri.parse("package:${ctx.packageName}"),
+        )
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        ctx.startActivity(intent)
+      }
     }
   }
 

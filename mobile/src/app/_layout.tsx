@@ -13,6 +13,7 @@ import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { syncFajrAlarm } from '../data/alarm';
 import { getEnv } from '../data/env';
 import { syncNotifications } from '../data/notify';
 import { StoreProvider, useStore } from '../data/store';
@@ -42,6 +43,27 @@ function NotificationSync() {
   return null;
 }
 
+/**
+ * Keeps the single native Fajr alarm matching `fajrAlarm` and `madhhab` --
+ * mounting this is itself "app start", so the real alarm is also what
+ * `AlarmReceiver`'s own reschedule (an approximation, see `FajrAlarmTime.kt`)
+ * gets corrected against the moment the app is next opened, which is
+ * exactly the moment the user dismisses today's alarm.
+ */
+function FajrAlarmSync() {
+  const { settings } = useStore();
+  useEffect(() => {
+    try {
+      syncFajrAlarm(settings);
+    } catch {
+      // A native call failing (odd OEM behaviour, no module) must never
+      // crash the app the alarm exists to protect.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.fajrAlarm, settings.madhhab]);
+  return null;
+}
+
 export default function RootLayout() {
   // Fail here, naming the variable, rather than three screens later as a
   // confusing network error. Expo Router's error boundary shows the message.
@@ -65,6 +87,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StoreProvider>
           <NotificationSync />
+          <FajrAlarmSync />
           <StatusBar style="dark" />
           <Stack
             screenOptions={{
