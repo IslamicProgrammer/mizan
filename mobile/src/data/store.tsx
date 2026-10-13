@@ -274,6 +274,27 @@ type Store = State & {
   addFocusMinutes: (n: number) => void;
   /** Adds `pkg` to `blockedApps` if it is absent, removes it if present. */
   toggleBlockedApp: (pkg: string) => void;
+  /**
+   * Adopts `history` from Task 8's push-then-pull round trip against
+   * `PUT /profile`. Only `history` is ever written back from the network —
+   * `settings`, `qaza`, `focusMinutes` and the rest are plain
+   * last-write-wins on the server (see `sync/merge.ts`'s comment on that
+   * trade-off), so pulling them down here would let a stale install
+   * silently undo a choice made on this device. `history` is the one field
+   * with a real merge, which is exactly what makes it safe to adopt
+   * wholesale: the push just before this always included this device's own
+   * current `history`, so the server's response is a strict union of it
+   * with whatever other devices had, never a loss.
+   *
+   * Today's key is dropped on arrival regardless of what the server sends
+   * back. Task 8 synthesizes today into the *request* body so the
+   * correction mechanism can see it, but today is never a key this store
+   * itself keeps in `history` — that is `marks`'s job until the next
+   * roll-over — and keeping it here would double-count today the moment a
+   * screen sums `history` plus `keptToday` (`settings/profile.tsx` does
+   * exactly that).
+   */
+  applyRemoteHistory: (remoteHistory: Record<string, DayRecord>) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -486,6 +507,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             ? s.blockedApps.filter((p) => p !== pkg)
             : [...s.blockedApps, pkg],
         })),
+      applyRemoteHistory: (remoteHistory) =>
+        setState((s) => {
+          const history = { ...remoteHistory };
+          delete history[ymd(new Date())];
+          return { ...s, history };
+        }),
       finishOnboarding: () => setState((s) => ({ ...s, onboarded: true })),
       // Wipes real history rather than replacing it with invented days.
       // `startedAt` is set to today because a fresh start has no past in

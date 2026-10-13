@@ -349,6 +349,43 @@ describe('stateForSync', () => {
   });
 });
 
+describe('applyRemoteHistory', () => {
+  it('adopts the pulled history wholesale, stripping only the synthesized today entry', async () => {
+    const store = await mountStore();
+    const todayKey = store.current().marksDate;
+
+    await act(async () => {
+      // A day another device recorded, plus a bogus "today" entry of the
+      // kind Task 8's sync body synthesizes for the network but which this
+      // store must never actually keep in `history`.
+      store.current().applyRemoteHistory({
+        '2025-01-01': { kept: 4, updatedAt: 10 },
+        [todayKey]: { kept: 5, updatedAt: 999 },
+      });
+    });
+
+    expect(store.current().history['2025-01-01']).toEqual({ kept: 4, updatedAt: 10 });
+    expect(todayKey in store.current().history).toBe(false);
+  });
+
+  it('replaces local history entirely with the server-merged result, never unioning stale local days back in', async () => {
+    const store = await mountStore();
+    await act(async () => {
+      store.current().repairDay('2024-06-01');
+    });
+    expect(store.current().history['2024-06-01']).toBeDefined();
+
+    await act(async () => {
+      store.current().applyRemoteHistory({ '2025-01-01': { kept: 1 } });
+    });
+
+    // The push just before this round trip already carried the local day
+    // into the merge, so what comes back is the full union -- adopting it
+    // wholesale is correct, not a loss of '2024-06-01'.
+    expect(store.current().history).toEqual({ '2025-01-01': { kept: 1 } });
+  });
+});
+
 describe("recordFor's today branch", () => {
   it('carries no updatedAt key when marksUpdatedAt has never been set', async () => {
     const store = await mountStore();

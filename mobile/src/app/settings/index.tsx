@@ -2,9 +2,10 @@ import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import React from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Bar, Label, List, Row, Screen, Toggle } from '../../components/ui';
+import { Bar, Chevron, Label, List, Row, Screen, Toggle } from '../../components/ui';
+import { useSession } from '../../data/auth';
 import { ICONS } from '../../data/icons';
 import { useStore } from '../../data/store';
 import { color, font, layout, lift, size } from '../../design/tokens';
@@ -17,23 +18,34 @@ const PRIVACY_URL = 'https://mizanapp.uz/maxfiylik';
 
 export default function Settings() {
   const { settings, patchSettings, reset } = useStore();
+  const { session } = useSession();
 
   return (
     <Screen glow="soft" pad={false}>
       <Bar title="Sozlamalar" onBack={() => router.back()} />
 
-      {/* Non-pressable: there is no account to open until Task 8 wires this
-          up to Google sign-in. A chevron here with nothing behind it would
-          be the same dead-row defect Task 13 exists to fix. */}
-      <View style={[s.profile, lift.low]}>
-        <View style={s.avatar}>
-          <Image source={ICONS.profile} style={s.avatarIcon} contentFit="contain" />
+      {/* Signed out, this opens `/sign-in` directly -- not `/settings/profile`,
+          which has nothing to show without an account either. Signed in, it
+          opens the real profile. Either way there is now something behind
+          the chevron, which is the one thing Task 13 exists to fix about
+          this row. */}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push(session ? '/settings/profile' : '/sign-in')}
+      >
+        <View style={[s.profile, lift.low]}>
+          <View style={s.avatar}>
+            <Image source={ICONS.profile} style={s.avatarIcon} contentFit="contain" />
+          </View>
+          <View style={s.flex}>
+            <Text style={s.profileName}>{session ? 'Hisobingiz faol' : 'Hisobga kirish'}</Text>
+            <Text style={s.profileSub}>
+              {session ? "Namoz tariximiz hisobingizga saqlanadi." : 'Tariximiz saqlanishi uchun hisobga kiring.'}
+            </Text>
+          </View>
+          <Chevron tint="#C4B29A" />
         </View>
-        <View style={s.flex}>
-          <Text style={s.profileName}>Hisobga kirish</Text>
-          <Text style={s.profileSub}>Tariximiz saqlanishi uchun hisobga kiring.</Text>
-        </View>
-      </View>
+      </Pressable>
 
       <Label>Namoz</Label>
       <List>

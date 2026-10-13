@@ -47,7 +47,8 @@
           "defaultChannel": "prayers"
         }
       ],
-      "./modules/app-watch/plugin/withAppWatch"
+      "./modules/app-watch/plugin/withAppWatch",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,33 +1,60 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Button, Screen, Tiles } from '../../components/ui';
+import { signInWithGoogle, signOut, useSession } from '../../data/auth';
 import { ICONS } from '../../data/icons';
 import { useStore } from '../../data/store';
 import { color, font, layout, lift, size } from '../../design/tokens';
 
 export default function Profile() {
   const { history, keptToday, streak, focusMinutes } = useStore();
+  const { session } = useSession();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // `useSession` only re-reads SecureStore on this component's own mount, so
+  // a sign-in or sign-out triggered right here would otherwise show no
+  // effect until the screen happens to remount. `null` defers to the hook's
+  // own read; a tap sets this directly to the outcome it just caused,
+  // which is the one case this screen can know for certain without waiting
+  // on anything to re-render it.
+  const [signedInOverride, setSignedInOverride] = useState<boolean | null>(null);
+  const signedIn = signedInOverride ?? !!session;
   // A real, derived total — every prayer this install ever recorded, plus
   // whatever has been kept so far today (today has not reached `history`
   // yet; see store.tsx's roll-over).
   const totalPrayers = Object.values(history).reduce((sum, rec) => sum + rec.kept, 0) + keptToday;
 
+  const onAccountPress = async () => {
+    setBusy(true);
+    setError(null);
+    if (signedIn) {
+      await signOut();
+      setSignedInOverride(false);
+    } else {
+      const err = await signInWithGoogle();
+      if (err) setError(err);
+      else setSignedInOverride(true);
+    }
+    setBusy(false);
+  };
+
   return (
     <Screen glow="soft" pad={false}>
       <Bar title="Profil" onBack={() => router.back()} />
 
-      {/* Non-pressable: there is no account until Task 8 wires this to
-          Google sign-in — a chevron here with nothing behind it would be
-          the dead-row defect Task 13 exists to fix. */}
       <View style={s.head}>
         <View style={[s.avatar, lift.high]}>
           <Image source={ICONS.profile} style={s.avatarIcon} contentFit="contain" />
         </View>
-        <Text style={s.name}>Hisobga kirish</Text>
-        <Text style={s.joined}>Tariximiz saqlanishi uchun hisobga kiring.</Text>
+        <Text style={s.name}>{signedIn ? 'Hisobingiz faol' : 'Hisobga kirish'}</Text>
+        <Text style={s.joined}>
+          {signedIn
+            ? 'Namoz tariximiz hisobingizga saqlanadi.'
+            : 'Tariximiz saqlanishi uchun hisobga kiring.'}
+        </Text>
       </View>
 
       <View style={s.gap} />
@@ -40,14 +67,17 @@ export default function Profile() {
       />
 
       {/* "Hisob" (plan, email, data export, devices) only describes a real
-          account, which does not exist while signed out — Task 8 wires up
-          Google sign-in and brings this section back behind that check. One
-          honest "no account" screen beats this section and the identity row
-          above stacked together, each implying a different truth. */}
+          account beyond this single toggle — out of scope here, same as
+          before Task 8. */}
 
       <View style={s.foot}>
-        <Button label="7 kun bepul sinash" onPress={() => {}} />
-        <Button label="Chiqish" tone="ghost" onPress={() => router.back()} />
+        {error ? <Text style={s.error}>{error}</Text> : null}
+        <Button
+          label={busy ? 'Kutilmoqda…' : signedIn ? 'Chiqish' : 'Google orqali kirish'}
+          tone={signedIn ? 'ghost' : 'solid'}
+          disabled={busy}
+          onPress={onAccountPress}
+        />
       </View>
     </Screen>
   );
@@ -61,4 +91,5 @@ const s = StyleSheet.create({
   name: { marginTop: 12, fontFamily: font.extrabold, fontSize: 23, letterSpacing: -0.4, color: color.ink },
   joined: { fontFamily: font.medium, fontSize: size.tiny, color: color.inkSoft, marginTop: 3 },
   foot: { marginTop: 20, marginHorizontal: layout.gutter, gap: 10 },
+  error: { fontFamily: font.medium, fontSize: size.tiny, color: '#B4472F', textAlign: 'center' },
 });

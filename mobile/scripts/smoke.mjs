@@ -17,7 +17,7 @@ import puppeteer from 'puppeteer-core';
 
 const BASE = process.argv[2] ?? 'http://localhost:8081';
 const ROUTES = [
-  '/', '/home', '/onboarding', '/timetable', '/garden', '/charity',
+  '/', '/home', '/onboarding', '/sign-in', '/timetable', '/garden', '/charity',
   '/month', '/qaza', '/qibla', '/stats', '/tasbih',
   '/settings', '/settings/prayer', '/settings/alarm',
   '/settings/notifications', '/settings/cycle', '/settings/profile',

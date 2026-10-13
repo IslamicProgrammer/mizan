@@ -5,7 +5,7 @@
  */
 type Raw = Record<string, string | undefined>;
 
-export type Env = { apiUrl: string };
+export type Env = { apiUrl: string; googleClientId: string };
 
 export function readEnv(raw: Raw): Env {
   const need = (key: string): string => {
@@ -15,6 +15,10 @@ export function readEnv(raw: Raw): Env {
   };
   return {
     apiUrl: need('EXPO_PUBLIC_API_URL'),
+    // The Web client ID — audience the server verifies against, and
+    // `webClientId` for @react-native-google-signin/google-signin. It is
+    // public (it ships inside the APK), unlike the server's JWT secret.
+    googleClientId: need('EXPO_PUBLIC_GOOGLE_CLIENT_ID'),
   };
 }
 
@@ -28,6 +32,7 @@ export function readEnv(raw: Raw): Env {
  */
 const RAW: Raw = {
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+  EXPO_PUBLIC_GOOGLE_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
 };
 
 let cached: Env | undefined;
