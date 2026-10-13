@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import React from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +8,12 @@ import { Bar, Label, List, Row, Screen, Toggle } from '../../components/ui';
 import { ICONS } from '../../data/icons';
 import { useStore } from '../../data/store';
 import { color, font, layout, lift, size } from '../../design/tokens';
+
+// Must be the same URL submitted in the Play Console listing (Task 12) — Task
+// 12 verifies the two match. If the domain isn't live yet, this literal is
+// still correct to ship: Google Play requires the link to be present and
+// reachable, not that it resolve before the app does.
+const PRIVACY_URL = 'https://mizanapp.uz/maxfiylik';
 
 export default function Settings() {
   const { settings, patchSettings, reset } = useStore();
@@ -73,8 +80,15 @@ export default function Settings() {
 
       <Label>Ilova</Label>
       <List>
-        <Row icon="book" title="Til" value="O'zbekcha" chevron />
-        <Row icon="lock" title="Maxfiylik siyosati" chevron />
+        {/* No chevron: there is nothing to choose, v1 ships Uzbek only. A
+            chevron here would promise a picker that does not exist. */}
+        <Row icon="book" title="Til" value="O'zbekcha" />
+        <Row
+          icon="lock"
+          title="Maxfiylik siyosati"
+          chevron
+          onPress={() => Linking.openURL(PRIVACY_URL)}
+        />
         <Row icon="profile" title="Profil" chevron onPress={() => router.push('/settings/profile')} />
       </List>
 

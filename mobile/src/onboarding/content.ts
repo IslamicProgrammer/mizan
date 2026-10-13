@@ -22,10 +22,16 @@ export type Step = Base &
     | { kind: 'paywall' }
   );
 
-export const LANGUAGES = [
+/**
+ * v1 ships Uzbek only — the market is Uzbekistan, and a language the app
+ * cannot actually speak must not be offered as if it could. Russian and
+ * English stay listed, marked `soon`, so the plan is visible rather than
+ * the two languages simply vanishing from the screen.
+ */
+export const LANGUAGES: { key: string; title: string; sub: string; soon?: true }[] = [
   { key: 'uz', title: "O'zbekcha", sub: 'Lotin alifbosi' },
-  { key: 'ru', title: 'Русский', sub: 'Russian' },
-  { key: 'en', title: 'English', sub: 'English' },
+  { key: 'ru', title: 'Русский', sub: 'Tez kunda', soon: true },
+  { key: 'en', title: 'English', sub: 'Tez kunda', soon: true },
 ];
 
 export const STEPS: Step[] = [

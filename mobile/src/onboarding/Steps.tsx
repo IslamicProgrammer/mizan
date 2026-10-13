@@ -35,22 +35,25 @@ export function LanguageStep({ value, onChange }: { value: string; onChange: (k:
       <View style={s.langs}>
         {LANGUAGES.map((l) => {
           const on = l.key === value;
+          const soon = l.soon === true;
           return (
             <Pressable
               key={l.key}
               accessibilityRole="radio"
-              accessibilityState={{ selected: on }}
+              accessibilityState={{ selected: on, disabled: soon }}
+              disabled={soon}
               onPress={() => {
+                if (soon) return;
                 Haptics.selectionAsync();
                 onChange(l.key);
               }}
-              style={[s.lang, lift.low, on && s.langOn]}
+              style={[s.lang, lift.low, on && s.langOn, soon && s.langSoon]}
             >
               <View style={s.flex}>
                 <Text style={s.langTitle}>{l.title}</Text>
                 <Text style={s.langSub}>{l.sub}</Text>
               </View>
-              <View style={[s.radio, on && s.radioOn]}>{on ? <Tick tint="#FFF" px={13} /> : null}</View>
+              <View style={[s.radio, on && s.radioOn]}>{!soon && on ? <Tick tint="#FFF" px={13} /> : null}</View>
             </Pressable>
           );
         })}
@@ -218,6 +221,7 @@ const s = StyleSheet.create({
   langs: { marginTop: 30, gap: 10 },
   lang: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: layout.radius.md, backgroundColor: color.surface },
   langOn: { backgroundColor: '#FBEFE2' },
+  langSoon: { opacity: 0.45 },
   langTitle: { fontFamily: font.bold, fontSize: size.body, color: color.ink },
   langSub: { fontFamily: font.medium, fontSize: size.tiny, color: color.inkSoft, marginTop: 2 },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.6, borderColor: '#DFD3BE', alignItems: 'center', justifyContent: 'center' },
