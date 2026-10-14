@@ -218,6 +218,26 @@ function ensureAlarmReceivers(manifest) {
   }
 }
 
+/**
+ * TEMPORARY, and it must be removed before release.
+ *
+ * Android 9 and later refuse cleartext HTTP, and the test server is currently
+ * reachable only over `http://` on an IP-derived hostname. Without this the app
+ * cannot reach its own API and sign-in fails with no useful error, which is a
+ * miserable thing to debug on a phone.
+ *
+ * `EXPO_PUBLIC_API_URL` is read here rather than hardcoded, so the moment that
+ * URL is `https://` this stops applying by itself and the app ships refusing
+ * cleartext, which is the correct production posture.
+ */
+function allowCleartextWhileApiIsHttp(manifest) {
+  const api = process.env.EXPO_PUBLIC_API_URL ?? '';
+  if (!api.startsWith('http://')) return;
+  const app = manifest.application?.[0];
+  if (!app) return;
+  app.$['android:usesCleartextTraffic'] = 'true';
+}
+
 const withAppWatch = (config) => {
   return withAndroidManifest(config, (config) => {
     const manifest = config.modResults.manifest;
@@ -226,6 +246,7 @@ const withAppWatch = (config) => {
     ensureReminderActivity(manifest);
     ensureAlarmService(manifest);
     ensureAlarmReceivers(manifest);
+    allowCleartextWhileApiIsHttp(manifest);
     return config;
   });
 };
