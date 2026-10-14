@@ -1,0 +1,17 @@
+# The build context is the repo root, because that is Dokploy's default and a
+# context path set in a UI is one more thing to get wrong. Everything is
+# excluded and only what the server image needs is added back, which keeps the
+# context at a few hundred kilobytes instead of the 8GB that mobile/node_modules
+# alone would otherwise send.
+*
+!server
+
+server/node_modules
+server/dist
+server/.env
+server/.env.*
+!server/.env.example
+server/src/__tests__
+server/vitest.config.ts
+server/vitest.setup.ts
+**/*.log

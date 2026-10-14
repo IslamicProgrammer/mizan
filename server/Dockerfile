@@ -1,26 +1,27 @@
 # Two stages so the shipped image carries no compiler and no dev dependencies.
-# Dokploy builds this from the repo root with `server` as the build context.
+# Built from the REPO ROOT as context (Dokploy's default), so every path below
+# is prefixed with `server/`. The root .dockerignore keeps that context small.
 
 FROM node:20-alpine AS build
 WORKDIR /app
 # Copied first and alone: this layer only rebuilds when the dependency set
 # changes, not on every source edit.
-COPY package.json package-lock.json ./
+COPY server/package.json server/package-lock.json ./
 RUN npm ci
-COPY tsconfig.json ./
-COPY src ./src
+COPY server/tsconfig.json ./
+COPY server/src ./src
 RUN npm run build
 
 FROM node:20-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production
-COPY package.json package-lock.json ./
+COPY server/package.json server/package-lock.json ./
 # `--omit=dev` is why the compiler and vitest do not reach production.
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 # Migrations are read from disk at boot by `migrate()`, so they are files in
 # the image rather than anything compiled into it.
-COPY migrations ./migrations
+COPY server/migrations ./migrations
 
 # Never root. A container that is compromised should not also be privileged.
 USER node
