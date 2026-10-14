@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mizan — Namozni himoya qiling</title>
+  <meta name="description" content="Bomdodga uyg'oning, namoz vaqtida telefonni jim qiling, muntazamlikni ko'ring. Sof foydaning 100% xayriyaga.">
+  <meta name="theme-color" content="#F8F2EA">
+  <link rel="icon" href="assets/mark.svg">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Asosiy qismga</a>
+  <div class="glow" aria-hidden="true"></div>
+  <div class="bleed" aria-hidden="true"></div>
+
+  <header>
+    <a class="brand" href="#main">
+      <img src="assets/mark.svg" alt="" width="36" height="36">
+      Mizan
+    </a>
+    <nav aria-label="Sahifa">
+      <a href="#qanday">Qanday ishlaydi</a>
+      <a href="#ehson">Ehson</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero shell">
+      <div class="hero-copy">
+        <p class="clock">05:34</p>
+        <p class="place">
+          <span>Bomdod</span>
+          <span>Toshkent</span>
+        </p>
+        <h1>Namozni himoya qiling</h1>
+        <p class="lead">Bomdodga uyg'oning, namoz vaqtida telefonni jim qiling, muntazamlikni ko'ring.</p>
+        <a class="act" href="#qanday">Qanday ishlaydi</a>
+      </div>
+      <figure class="hero-fig">
+        <img src="assets/arch.jpg" width="896" height="1200" alt="Tong osmoni oddiy tosh ravoq orqali ko'rinmoqda" fetchpriority="high">
+      </figure>
+    </section>
+
+    <section id="qanday" class="story shell">
+      <article class="wake">
+        <figure class="frame reveal">
+          <img src="assets/room.jpg" width="896" height="1200" alt="Tong nuri bo'sh xonada joynamoz ustiga tushmoqda" loading="lazy">
+        </figure>
+        <div class="copy">
+          <h2>Uyg'oning</h2>
+          <p>Oddiy budilnikni yotgan joyda o'chirib yuborasiz. Bu boshqacha ishlaydi — joynamozni kameraga ko'rsatmaguningizcha signal tinmaydi.</p>
+          <p class="note">Ilova buyumni ko'rganini tasdiqlaydi, namoz o'qiganingizni emas.</p>
+        </div>
+      </article>
+
+      <article class="still">
+        <div class="copy">
+          <h2>Namoz vaqti</h2>
+          <p>Shu vaqtda telefon jim turadi. Rejimni siz yoqasiz — eslatma yoki qulf. Bu jazo emas.</p>
+        </div>
+        <figure class="frame reveal">
+          <img src="assets/rug.jpg" width="896" height="1200" alt="Jun joynamoz, yaqindan. O'rtasida bo'sh ravoq" loading="lazy">
+        </figure>
+      </article>
+
+      <article class="garden">
+        <img class="plant" src="assets/plant.png" width="420" height="502" alt="Besh namozdan keyin ochilgan gul">
+        <div class="copy">
+          <h2>Bog'</h2>
+          <p>Har namoz o'simlikni bir bosqich o'stiradi. O'tkazib yuborilgan kun qurib qolmaydi — bog'ingiz to'xtab turadi.</p>
+        </div>
+      </article>
+    </section>
+
+    <section id="ehson" class="vow shell">
+      <p class="pct">100<sup>%</sup></p>
+      <div>
+        <h2>Sof foyda xayriyaga</h2>
+        <p>Biz daromadning emas, sof foydaning 100% deymiz. Avval do'kon komissiyasi, server, soliq va ish haqi. Qolgani har oy ochiq hisobotda.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <a class="brand" href="#main">
+      <img src="assets/mark.svg" alt="" width="36" height="36">
+      Mizan
+    </a>
+    <p>Android uchun tayyorlanmoqda.</p>
+  </footer>
+
+  <div class="grain" aria-hidden="true"></div>
+  <script>
+    const header = document.querySelector('header');
+    const markScrolled = () => header.classList.toggle('is-scrolled', window.scrollY > 12);
+    markScrolled();
+    window.addEventListener('scroll', markScrolled, { passive: true });
+
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const frames = document.querySelectorAll('.reveal');
+      const seen = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.add('in');
+          seen.unobserve(entry.target);
+        }
+      }, { threshold: 0.28 });
+      for (const frame of frames) {
+        frame.classList.add('await');
+        seen.observe(frame);
+      }
+    }
+  </script>
+</body>
+</html>

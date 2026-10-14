@@ -176,3 +176,4 @@ single change that makes this design look generic — see `design-system.md` §1
   the app is published to Google Play** — settle it before the first upload.
 - Native modules (camera for the Fajr scan, app blocking) need a development
   build; Expo Go will not run them.
+# mizan
