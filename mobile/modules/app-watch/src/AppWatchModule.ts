@@ -21,6 +21,8 @@ declare class AppWatchModule extends NativeModule<{}> {
   requestExactAlarmPermission(): void;
   nextFajrAlarmAt(): number | null;
   stopAlarmSound(): void;
+  canUseFullScreenIntent(): boolean;
+  requestFullScreenIntentPermission(): void;
   isIgnoringBatteryOptimizations(): boolean;
   requestIgnoreBatteryOptimizations(): void;
 }

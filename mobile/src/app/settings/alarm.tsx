@@ -4,9 +4,11 @@ import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import {
   canScheduleExact,
+  canUseFullScreenIntent,
   isIgnoringBatteryOptimizations,
   nextFajrAlarmAt,
   requestExactAlarmPermission,
+  requestFullScreenIntentPermission,
   requestIgnoreBatteryOptimizations,
   scheduleTestAlarm,
 } from '../../../modules/app-watch';
@@ -14,7 +16,7 @@ import { Bar, Button, Label, List, Note, Row, Screen, Toggle } from '../../compo
 import { notificationsGranted, requestNotificationPermission } from '../../data/notify';
 import { dayMonth, hhmm, timesFor } from '../../data/prayer';
 import { useStore } from '../../data/store';
-import { font, layout, lift, size } from '../../design/tokens';
+import { color, font, layout, lift, size } from '../../design/tokens';
 
 const OBJECTS = [
   { key: 'mat', icon: 'mat', title: 'Joynamozni skanerlash', sub: 'Karavotdan turishni talab qiladi' },
@@ -34,6 +36,7 @@ function readPermissionSnapshot() {
   return {
     exactAllowed: canScheduleExact(),
     batteryIgnored: isIgnoringBatteryOptimizations(),
+    fullScreenIntentAllowed: canUseFullScreenIntent(),
     nextAt: nextFajrAlarmAt() as number | null,
   };
 }
@@ -42,7 +45,8 @@ export default function AlarmSettings() {
   const { settings, patchSettings } = useStore();
   const fajr = timesFor(new Date(), settings.madhhab)[0];
 
-  const [{ exactAllowed, batteryIgnored, nextAt }, setSnapshot] = useState(readPermissionSnapshot);
+  const [{ exactAllowed, batteryIgnored, fullScreenIntentAllowed, nextAt }, setSnapshot] =
+    useState(readPermissionSnapshot);
   const [notifGranted, setNotifGranted] = useState(true);
   const [testArmedAt, setTestArmedAt] = useState<number | null>(null);
   const [testSecondsLeft, setTestSecondsLeft] = useState(0);
@@ -135,6 +139,19 @@ export default function AlarmSettings() {
         </>
       )}
 
+      {!fullScreenIntentAllowed && (
+        <View style={[s.fsiCard, lift.low]}>
+          <Text style={s.fsiTitle}>To'liq ekranli ogohlantirish o'chirilgan</Text>
+          <Text style={s.fsiBody}>Signal ekranni yoqishi uchun shu ruxsat kerak.</Text>
+          <Button
+            label="Ruxsat berish"
+            tone="ghost"
+            onPress={requestFullScreenIntentPermission}
+            style={s.fsiBtn}
+          />
+        </View>
+      )}
+
       {!batteryIgnored && (
         <>
           <Note icon="shield">Telefon ilovani uxlatib qo'yishi mumkin</Note>
@@ -195,6 +212,18 @@ const s = StyleSheet.create({
   heroTime: { fontFamily: font.black, fontSize: 40, letterSpacing: -1.5, color: '#40290C', fontVariant: ['tabular-nums'] },
   heroSub: { fontFamily: font.semibold, fontSize: size.tiny, color: '#8A5A11', marginTop: 2 },
   permBtn: { marginHorizontal: layout.gutter, marginTop: 8 },
+  fsiCard: {
+    marginHorizontal: layout.gutter,
+    marginTop: 8,
+    marginBottom: 14,
+    padding: 16,
+    borderRadius: layout.radius.md,
+    backgroundColor: color.surface,
+    gap: 8,
+  },
+  fsiTitle: { fontFamily: font.bold, fontSize: 15, color: color.ink },
+  fsiBody: { fontFamily: font.medium, fontSize: 12.5, lineHeight: 18, color: color.inkSoft },
+  fsiBtn: { alignSelf: 'stretch', marginTop: 4 },
   foot: { marginTop: 18, marginHorizontal: layout.gutter, gap: 10 },
   testHint: {
     fontFamily: font.semibold,

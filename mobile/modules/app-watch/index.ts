@@ -34,6 +34,8 @@ interface AppWatchNative {
   requestExactAlarmPermission(): void;
   nextFajrAlarmAt(): number | null;
   stopAlarmSound(): void;
+  canUseFullScreenIntent(): boolean;
+  requestFullScreenIntentPermission(): void;
   isIgnoringBatteryOptimizations(): boolean;
   requestIgnoreBatteryOptimizations(): void;
 }
@@ -178,6 +180,25 @@ export function nextFajrAlarmAt(): number | null {
  * this when nothing is ringing is a no-op, never an error. */
 export function stopAlarmSound(): void {
   native?.stopAlarmSound();
+}
+
+/**
+ * Whether the system will actually show the ringing screen over the lock
+ * screen right now. On Android 14+ this is a separate grant from
+ * `USE_FULL_SCREEN_INTENT` merely being declared in the manifest -- denied,
+ * `AlarmService`'s notification still fires, just downgraded to an ordinary
+ * heads-up with no screen takeover, which is the "alarm works but weird"
+ * field report. Always `true` below Android 14 and on every platform
+ * without the module, where the question does not apply.
+ */
+export function canUseFullScreenIntent(): boolean {
+  return native?.canUseFullScreenIntent() ?? true;
+}
+
+/** Opens `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`; a no-op below
+ * Android 14 (nothing to grant) or off Android entirely. */
+export function requestFullScreenIntentPermission(): void {
+  native?.requestFullScreenIntentPermission();
 }
 
 export function isIgnoringBatteryOptimizations(): boolean {

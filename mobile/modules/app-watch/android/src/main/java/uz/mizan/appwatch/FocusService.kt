@@ -79,6 +79,14 @@ class FocusService : Service() {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    // Once per start, never from `tick()`'s 900ms poll -- the launcher and
+    // dialer this device has do not change tens of times a second, and a
+    // `queryIntentActivities` call on every tick would be wasted work for a
+    // set that only moves when the user installs or reconfigures one of
+    // them. This also covers a `START_STICKY` restart in a fresh process,
+    // where `BlockGuard`'s resolved state from before the kill is gone.
+    BlockGuard.refresh(this)
+
     if (intent == null) {
       // The `START_STICKY` restart this service exists to survive. There is
       // nothing fresh to read, only what this process persisted before it
@@ -201,6 +209,7 @@ class FocusService : Service() {
       putExtra(ReminderActivity.EXTRA_LABEL, appLabel(pkg))
       putExtra(ReminderActivity.EXTRA_MODE, mode)
     }
+    Log.d(TAG, "launching ReminderActivity for $pkg (mode=$mode)")
     try {
       startActivity(intent)
     } catch (e: Exception) {

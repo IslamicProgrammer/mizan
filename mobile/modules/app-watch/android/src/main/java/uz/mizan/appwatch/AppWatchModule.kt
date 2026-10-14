@@ -1,5 +1,6 @@
 package uz.mizan.appwatch
 
+import android.app.NotificationManager
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
@@ -7,6 +8,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Base64
@@ -91,6 +93,12 @@ class AppWatchModule : Module() {
     // instead.
     Function("installedApps") {
       val ctx = appContext.reactContext ?: return@Function emptyList<Map<String, String>>()
+      // Re-resolved here too, not only at `FocusService` start: a launcher
+      // the user installs or switches to after this screen was last opened
+      // must never be choosable in the picker in the first place -- see the
+      // field bug in `BlockGuard`'s own doc, where a launcher the static
+      // prefix list did not know about got blocked outright.
+      BlockGuard.refresh(ctx)
       val pm = ctx.packageManager
       val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
       val resolved = pm.queryIntentActivities(launcherIntent, 0)
@@ -231,6 +239,40 @@ class AppWatchModule : Module() {
       val ctx = appContext.reactContext
       if (ctx != null) {
         ctx.stopService(Intent(ctx, AlarmService::class.java))
+      }
+    }
+
+    // Task: the alarm "working weird" field report -- `AlarmService`'s
+    // `setFullScreenIntent` was already wired, but Android 14+ does not
+    // grant `USE_FULL_SCREEN_INTENT` to every app that declares it the way
+    // every earlier version did. Denied, the system silently downgrades the
+    // alarm to an ordinary heads-up notification: it still makes noise, but
+    // no screen takes over and the `Skanerlash` button on it is nowhere to
+    // be found, which reads as "the alarm works, but weird" from the
+    // outside. `settings/alarm.tsx` shows this alongside the other
+    // permission cards, same as `canScheduleExact` above.
+    Function("canUseFullScreenIntent") {
+      val ctx = appContext.reactContext ?: return@Function false
+      // Below Android 14 every app that declares the permission has it --
+      // `canUseFullScreenIntent()` itself does not exist on those API
+      // levels, so this must be checked before ever calling it.
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return@Function true
+      val nm = ctx.getSystemService(NotificationManager::class.java) ?: return@Function false
+      nm.canUseFullScreenIntent()
+    }
+
+    // `USE_FULL_SCREEN_INTENT` has no runtime prompt either -- same shape as
+    // `requestUsageAccess`/`requestOverlayPermission` above, a settings
+    // screen to open and trust the user to come back from.
+    Function("requestFullScreenIntentPermission") {
+      val ctx = appContext.reactContext
+      if (ctx != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        val intent = Intent(
+          Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+          Uri.parse("package:${ctx.packageName}"),
+        )
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        ctx.startActivity(intent)
       }
     }
 

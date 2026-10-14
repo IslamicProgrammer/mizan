@@ -49,7 +49,7 @@ describe('POST /scan', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/scan',
-      payload: { image: 'x'.repeat(3_000_000), target: 'mat' },
+      payload: { image: 'x'.repeat(5_000_000), target: 'mat' },
     });
 
     expect(res.statusCode).toBe(413);

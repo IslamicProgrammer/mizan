@@ -9,9 +9,18 @@ const Body = z.object({
   target: z.enum(['mat', 'sink', 'both']),
 });
 
-/** A half-quality `takePictureAsync` JPEG comfortably fits well under this;
- * anything near it is not a camera frame. */
-const SCAN_BODY_LIMIT = 2 * 1024 * 1024;
+/**
+ * The client resizes every frame's longest edge to 1024px before encoding
+ * (see `mobile/src/data/scan.ts`) -- that is the real fix for a detailed
+ * prayer mat producing a JPEG big enough to trip this. This limit is only
+ * the second line of defence, which is why it is comfortably above what a
+ * correctly-resized frame ever base64-encodes to rather than tuned tight
+ * against it: a limit that is merely larger than the last oversized photo
+ * still fails on the next phone with a better camera, so it exists to catch
+ * a malformed or unresized payload, not to be the thing that keeps this
+ * endpoint's requests small.
+ */
+const SCAN_BODY_LIMIT = 4 * 1024 * 1024;
 
 /** One scan per IP per window — a retry loop at 5am is the worst version of
  * this feature, and it costs money per call. */

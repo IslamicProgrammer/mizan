@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { router } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -10,6 +11,7 @@ import Svg, { Path } from 'react-native-svg';
 import { stopAlarmSound } from '../../../modules/app-watch';
 import { Button } from '../../components/ui';
 import { getEnv } from '../../data/env';
+import { outcomeForStatus, resizeTarget, SCAN_NOTE, type ScanOutcome } from '../../data/scan';
 import { useStore } from '../../data/store';
 import { font, layout, size } from '../../design/tokens';
 
@@ -22,14 +24,11 @@ const TARGET_LABEL = { mat: 'Joynamozni', sink: 'Rakovinani', both: 'Joynamoz yo
 const PRIVACY_NOTE =
   "Rasm tekshirish uchun serverga yuboriladi va darhol o'chiriladi. Hech qayerda saqlanmaydi.";
 
-const NO_MATCH_NOTE = "Topilmadi. Yana bir marta urinib ko'ring.";
-const OFFLINE_NOTE = "Internetga ulanib bo'lmadi.";
-
 /** Gemini can be slow but must not be allowed to hang forever with a spinner
  * on screen at 5am — past this, it's treated the same as unreachable. */
 const REQUEST_TIMEOUT_MS = 20_000;
 
-type ScanState = 'idle' | 'sending' | 'no-match' | 'offline' | 'match';
+type ScanState = 'idle' | 'sending' | ScanOutcome;
 
 /**
  * The Fajr scan.
@@ -61,11 +60,9 @@ export default function Scan() {
   }, [flash]);
   const bracketStyle = useAnimatedStyle(() => ({ opacity: flash.get() }));
 
-  const bracketColor =
-    scanState === 'match' ? '#8FBF87' : scanState === 'no-match' || scanState === 'offline' ? '#E8B762' : '#FFFFFF';
+  const bracketColor = scanState === 'match' ? '#8FBF87' : scanState in SCAN_NOTE ? '#E8B762' : '#FFFFFF';
 
-  const note =
-    scanState === 'no-match' ? NO_MATCH_NOTE : scanState === 'offline' ? OFFLINE_NOTE : PRIVACY_NOTE;
+  const note = scanState in SCAN_NOTE ? SCAN_NOTE[scanState as Exclude<ScanOutcome, 'match'>] : PRIVACY_NOTE;
 
   const takeScan = useCallback(async () => {
     if (inFlight.current || !cameraReady) return;
@@ -80,20 +77,41 @@ export default function Scan() {
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      const photo = await camera.takePictureAsync({ quality: 0.5, base64: true, skipProcessing: true });
-      if (!photo.base64) throw new Error('no frame captured');
+      // `takePictureAsync`'s own `quality` is a compression ratio, not a
+      // size ceiling -- a detailed prayer mat still produces a JPEG several
+      // times larger than a plain floor does at the same quality, and
+      // `skipProcessing` discards it anyway. Resizing the longest edge down
+      // to a fixed pixel count and recompressing below, in
+      // `ImageManipulator`, is what actually bounds the upload regardless
+      // of how busy the scene is.
+      const photo = await camera.takePictureAsync({ skipProcessing: true });
+      const target = resizeTarget(photo.width, photo.height);
+      const rendered = await (target
+        ? ImageManipulator.manipulate(photo.uri).resize(target).renderAsync()
+        : ImageManipulator.manipulate(photo.uri).renderAsync());
+      const saved = await rendered.saveAsync({ compress: 0.5, format: SaveFormat.JPEG, base64: true });
+      if (!saved.base64) throw new Error('no frame captured');
 
       const res = await fetch(`${getEnv().apiUrl}/scan`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ image: photo.base64, target: settings.scanObject }),
+        body: JSON.stringify({ image: saved.base64, target: settings.scanObject }),
         signal: controller.signal,
       });
 
-      // A non-OK response (rate-limited, oversized, malformed) is not "the
-      // server is unreachable" -- it answered, just not with a match. Both
-      // land the same way: shutter back, never a silent pass.
-      const match = res.ok && ((await res.json()) as { match?: boolean }).match === true;
+      if (!res.ok) {
+        // A non-OK response is the server answering, not vanishing -- it is
+        // the 413/429/etc this exact request got, and reporting it as "no
+        // internet" (the old bug) is what made the field report impossible
+        // to diagnose from the owner's description alone.
+        console.log(`scan: server returned ${res.status}`);
+        setScanState(outcomeForStatus(res.status));
+        pulseOnce();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        return;
+      }
+
+      const match = ((await res.json()) as { match?: boolean }).match === true;
 
       if (match) {
         // The native half of this escape, same as `ringing.tsx`'s ten-second
@@ -110,12 +128,15 @@ export default function Scan() {
       setScanState('no-match');
       pulseOnce();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    } catch {
-      // Rural signal at 5am, Gemini timing out, a DNS hiccup -- whatever the
-      // cause, this must say so plainly and hand the shutter straight back.
+    } catch (err) {
+      // Rural signal at 5am, Gemini timing out, a DNS hiccup, or a response
+      // the client never got to see at all (an oversized upload can drop
+      // the connection before a clean 413 arrives) -- whatever the cause,
+      // this must say so plainly and hand the shutter straight back.
       // Silently passing the scan defeats the whole feature; silently
       // failing it with no explanation leaves someone standing in the dark
       // not knowing whether to keep trying.
+      console.log('scan: request failed', err);
       setScanState('offline');
       pulseOnce();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

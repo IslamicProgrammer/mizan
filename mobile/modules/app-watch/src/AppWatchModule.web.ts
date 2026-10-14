@@ -45,6 +45,13 @@ class AppWatchModule extends NativeModule<{}> {
     return null;
   }
   stopAlarmSound(): void {}
+  // `true`, not `false` -- the question "is the full-screen-intent grant
+  // missing" does not apply off Android at all, same as `index.ts`'s own
+  // fallback for a platform without this module.
+  canUseFullScreenIntent(): boolean {
+    return true;
+  }
+  requestFullScreenIntentPermission(): void {}
   isIgnoringBatteryOptimizations(): boolean {
     return false;
   }

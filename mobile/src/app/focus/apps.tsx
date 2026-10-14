@@ -18,6 +18,7 @@ import {
   type InstalledApp,
 } from '../../../modules/app-watch';
 import { Button, Bar, Empty, Label, List, Note, Row, Screen, Toggle } from '../../components/ui';
+import { formatBlockDiagnostic } from '../../data/focusDiagnostic';
 import { useStore } from '../../data/store';
 import { color, font, layout, lift } from '../../design/tokens';
 
@@ -63,10 +64,17 @@ export default function AppPicker() {
   // this cheap belongs in the lazy initializer, not behind a loading flash
   // caused by fetching it again inside an effect.
   const [{ usageGranted, overlayGranted, apps, usage }, setSnapshot] = useState(readSnapshot);
+  // The one fact the old screen never showed: whether the native service
+  // this whole feature depends on is actually alive right now. Read fresh
+  // on every focus and right after every toggle, same reasoning as the
+  // permission snapshot above -- it changes from outside this component's
+  // own renders (a reboot, the OS killing the process, the toggle itself).
+  const [serviceRunning, setServiceRunning] = useState(isFocusRunning);
 
   useFocusEffect(
     useCallback(() => {
       setSnapshot(readSnapshot());
+      setServiceRunning(isFocusRunning());
       // A test switch that reads "on" after the process restarted (a device
       // reboot, the app killed from recents) but has no service actually
       // running behind it is exactly the "permanent background service the
@@ -105,7 +113,19 @@ export default function AppPicker() {
     } else {
       stopFocus();
     }
+    // `startFocus`/`stopFocus` are synchronous calls into the native
+    // module, so the service's own `isRunning` flag is already current by
+    // the time this returns -- the diagnostic line below must reflect the
+    // toggle immediately, not wait for the next focus event.
+    setServiceRunning(isFocusRunning());
   };
+
+  const diagnostic = formatBlockDiagnostic({
+    usageGranted,
+    overlayGranted,
+    serviceRunning,
+    blockedCount: blockedApps.length,
+  });
 
   return (
     <Screen glow="soft" pad={false}>
@@ -146,6 +166,15 @@ export default function AppPicker() {
           }
         />
       </List>
+      {/*
+        The field report this line exists for: "this blocking is not
+        working at all", filed with nothing to go on because the switch
+        moving was the only feedback this screen ever gave. Always shown,
+        not only while something is wrong -- the owner needs to be able to
+        read the real state at a glance, every time, not just when a card
+        above already says a permission is missing.
+      */}
+      <Text style={s.diagnostic}>{diagnostic}</Text>
 
       {/*
         Task 23: a choice between the two modes, not a second permission
@@ -287,6 +316,14 @@ function AppRow({
 }
 
 const s = StyleSheet.create({
+  diagnostic: {
+    fontFamily: font.medium,
+    fontSize: 11.5,
+    color: color.inkSoft,
+    marginHorizontal: layout.gutter,
+    marginTop: -4,
+    marginBottom: 14,
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13, paddingHorizontal: 16 },
   icon: { width: 36, height: 36, borderRadius: 10 },
   letterTile: {

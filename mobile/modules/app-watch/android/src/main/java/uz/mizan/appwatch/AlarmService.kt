@@ -152,6 +152,21 @@ class AlarmService : Service() {
       ),
       PendingIntent.FLAG_IMMUTABLE,
     )
+    // On Android 14+ without `USE_FULL_SCREEN_INTENT` actually granted (see
+    // `AppWatchModule.canUseFullScreenIntent`), this notification -- a
+    // heads-up with sound, no ringing screen -- is the entire alarm as far
+    // as the user can see. An action button straight to the scan screen is
+    // what keeps that case honest: without it, the only way to silence the
+    // alarm is to find and open the app from a lock screen that gives no
+    // hint the ringing screen even exists.
+    val scanIntent = PendingIntent.getActivity(
+      this,
+      NOTIFICATION_ID + 1,
+      Intent(Intent.ACTION_VIEW, Uri.parse(SCAN_DEEP_LINK)).addFlags(
+        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+      ),
+      PendingIntent.FLAG_IMMUTABLE,
+    )
     return NotificationCompat.Builder(this, CHANNEL_ID)
       .setContentTitle("Bomdod")
       .setContentText("Signalni to'xtatish uchun ilovani oching")
@@ -165,6 +180,7 @@ class AlarmService : Service() {
       // heads-up with sound -- a degraded alarm rather than no alarm at all.
       .setFullScreenIntent(showIntent, true)
       .setContentIntent(showIntent)
+      .addAction(android.R.drawable.ic_menu_camera, "Skanerlash", scanIntent)
       .build()
   }
 
@@ -187,6 +203,7 @@ class AlarmService : Service() {
     private const val NOTIFICATION_ID = 7441
     private const val CHANNEL_ID = "fajr_alarm"
     private const val RINGING_DEEP_LINK = "mizan://alarm/ringing"
+    private const val SCAN_DEEP_LINK = "mizan://alarm/scan"
     private const val MIN_VOLUME = 0.12f
     private const val RAMP_STEPS = 30
     private const val RAMP_INTERVAL_MS = 1_000L // 30 steps * 1s == the 30s ramp settings/alarm.tsx promises
