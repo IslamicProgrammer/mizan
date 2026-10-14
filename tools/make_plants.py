@@ -15,6 +15,10 @@ from collections import deque
 import numpy as np
 from PIL import Image
 
+# NOTE: this sheet was a working file and was never committed, so this script
+# cannot be re-run as-is. The six plant stages it produced are already in
+# design-v3/assets/img and the app. To change them, regenerate a 3x2 sheet
+# first - see hero-spec.txt in logos/iconset for the prompt style used.
 SRC = pathlib.Path("logos/iconset/grow-1.png")
 DST = pathlib.Path("design-v3/assets/img")
 COLS, ROWS = 3, 2
