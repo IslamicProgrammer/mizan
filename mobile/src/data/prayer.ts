@@ -94,6 +94,35 @@ export function currentPrayer(now = new Date(), madhhab: Madhhab = 'hanafi'): Pr
   return cur;
 }
 
+export type BlockWindow = {
+  /** The prayer whose "closed until" applies right now. */
+  current: PrayerId;
+  /** When that window opened. */
+  windowStart: Date;
+  /** When it closes -- the next prayer's start, rolled into tomorrow's
+   * Fajr after Isha via `nextPrayer`. */
+  windowEnd: Date;
+  /** Rounded up, never down: a session that reads "0 daqiqa qoldi" while a
+   * minute is still genuinely left is the kind of off-by-one a focus-mode
+   * user notices immediately. */
+  minutesLeft: number;
+};
+
+/**
+ * What `focus/blocked.tsx` shows (block-screen.md): which prayer the
+ * current block belongs to, the window's wall-clock bounds, and the
+ * minutes left in it. Computed here, once, from `timesFor`/`nextPrayer` --
+ * never a second calculation in Kotlin, which this file's own header
+ * already warns would drift from this one.
+ */
+export function blockWindow(now: Date, madhhab: Madhhab = 'hanafi'): BlockWindow {
+  const current = currentPrayer(now, madhhab);
+  const windowStart = timesFor(now, madhhab).find((s) => s.id === current)!.at;
+  const next = nextPrayer(now, madhhab);
+  const minutesLeft = Math.max(0, Math.ceil(next.until / 60_000));
+  return { current, windowStart, windowEnd: next.slot.at, minutesLeft };
+}
+
 export function countdown(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);

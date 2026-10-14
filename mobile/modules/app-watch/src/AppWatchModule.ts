@@ -10,10 +10,16 @@ declare class AppWatchModule extends NativeModule<{}> {
   foregroundPackage(): string | null;
   installedApps(): InstalledApp[];
   appIcon(pkg: string): string | null;
+  appLabel(pkg: string): string | null;
   usageToday(): AppUsage[];
   startFocus(blocked: string[], endsAt: number, mode: BlockMode): void;
   stopFocus(): void;
   isFocusRunning(): boolean;
+  focusMode(): BlockMode;
+  resumeApp(pkg: string): void;
+  goHome(): void;
+  notifyDismissed(pkg: string): void;
+  snooze(pkg: string): void;
   scheduleFajrAlarm(atEpochMs: number): void;
   scheduleTestAlarm(atEpochMs: number): void;
   cancelFajrAlarm(): void;

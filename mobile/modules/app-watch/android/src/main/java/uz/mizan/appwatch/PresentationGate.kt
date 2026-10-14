@@ -33,10 +33,19 @@ class PresentationGate(
   private val dismissals = mutableMapOf<String, Int>()
   private val dismissedAt = mutableMapOf<String, Long>()
 
+  // "5 daqiqa kutish" (block-screen.md) -- the same suppression mechanism
+  // this class already is, extended rather than duplicated. Unlike the
+  // dismissal cutoff above, this one is not reminder-only: snoozing is a
+  // deliberate, mode-agnostic choice the screen offers in lock mode too,
+  // so it is checked in [suppressReason] unconditionally, never behind
+  // `enforceDismissalRules`.
+  private val snoozedUntil = mutableMapOf<String, Long>()
+
   fun reset() {
     visiblePackage = null
     dismissals.clear()
     dismissedAt.clear()
+    snoozedUntil.clear()
   }
 
   fun dismissalsFor(pkg: String): Int = dismissals[pkg] ?: 0
@@ -60,6 +69,10 @@ class PresentationGate(
    * presented twice over a single burst of `ACTIVITY_RESUMED` events.
    */
   fun suppressReason(pkg: String, now: Long, enforceDismissalRules: Boolean = true): String? {
+    val snoozeEnds = snoozedUntil[pkg]
+    if (snoozeEnds != null && now < snoozeEnds) {
+      return "snoozed for ${snoozeEnds - now}ms more"
+    }
     if (enforceDismissalRules) {
       val count = dismissalsFor(pkg)
       if (count >= maxDismissalsPerApp) {
@@ -97,9 +110,19 @@ class PresentationGate(
     markHidden(pkg)
   }
 
+  /** "5 daqiqa kutish" -- `pkg` is not presentable again until `durationMs`
+   * has passed, in either mode. `markHidden` alongside it clears the strobe
+   * guard too, so the resumed app is not immediately re-flagged as "already
+   * presented" the moment the snooze window itself expires. */
+  fun snooze(pkg: String, now: Long, durationMs: Long = DEFAULT_SNOOZE_MS) {
+    snoozedUntil[pkg] = now + durationMs
+    markHidden(pkg)
+  }
+
   companion object {
     private const val DEFAULT_MAX_DISMISSALS_PER_APP = 2
     private const val DEFAULT_STROBE_WINDOW_MS = 1_000L
     private const val DEFAULT_POST_DISMISS_COOLDOWN_MS = 3_000L
+    private const val DEFAULT_SNOOZE_MS = 5 * 60 * 1_000L
   }
 }

@@ -21,7 +21,7 @@ const ROUTES = [
   '/month', '/qaza', '/qibla', '/stats', '/tasbih',
   '/settings', '/settings/prayer', '/settings/alarm',
   '/settings/notifications', '/settings/cycle', '/settings/profile',
-  '/focus', '/focus/apps', '/focus/active', '/focus/stats',
+  '/focus', '/focus/apps', '/focus/active', '/focus/blocked', '/focus/stats',
   '/alarm/ringing', '/alarm/success',
   '/charity/reports', '/charity/report',
 ];

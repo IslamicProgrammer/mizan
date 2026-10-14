@@ -137,6 +137,83 @@ class AppWatchModule : Module() {
       if (pm == null) null else cachedIconDataUri(pm, pkg)
     }
 
+    // block-screen.md: the one piece of app identity `ReminderActivity` no
+    // longer carries across the deep link -- `focus/blocked.tsx` resolves
+    // it itself, the same "real, never hardcoded" rule `installedApps`
+    // already follows for this exact field. `null`, not the package name,
+    // on failure: the fallback-to-package-name behaviour belongs in
+    // `index.ts`, the one place every platform without this module (and
+    // every failure on the one platform with it) goes through, not
+    // duplicated here.
+    Function("appLabel") { pkg: String ->
+      val pm = appContext.reactContext?.packageManager
+      try {
+        if (pm == null) null else pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+      } catch (e: PackageManager.NameNotFoundException) {
+        null
+      }
+    }
+
+    // `'remind'` or `'lock'` for the session `focus/blocked.tsx` was
+    // deep-linked out of -- read back from `FocusService.currentMode`
+    // rather than carried on the deep link itself (block-screen.md: "pass
+    // only the package name"). Mode is session state, not something the RN
+    // screen could otherwise recompute the way it does the prayer and the
+    // minutes remaining.
+    Function("focusMode") {
+      FocusService.currentMode
+    }
+
+    // `Davom etish` and "5 daqiqa kutish" both need to put the blocked app
+    // back in front of the user -- what finishing `ReminderActivity` used
+    // to do for free by revealing the task underneath it, before that
+    // Activity stopped drawing a screen of its own to reveal anything
+    // over. `getLaunchIntentForPackage` is the same lookup
+    // `BlockGuard`/`installedApps` already trust to mean "a real, visible
+    // app"; a `null` result (the app was uninstalled between the reminder
+    // firing and the button tap) is a silent no-op, same spirit as
+    // `stopAlarmSound`'s idempotence.
+    Function("resumeApp") { pkg: String ->
+      val ctx = appContext.reactContext
+      val launch = ctx?.packageManager?.getLaunchIntentForPackage(pkg)
+      if (ctx != null && launch != null) {
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        ctx.startActivity(launch)
+      }
+    }
+
+    // `Bosh ekran` / `bugunga fokusni o'chirish`'s destination, and lock
+    // mode's own Back override (`focus/blocked.tsx`) -- the exact intent
+    // `ReminderActivity.goHome` used to fire natively, now reachable from
+    // RN because the button that fires it lives there now.
+    Function("goHome") {
+      val ctx = appContext.reactContext
+      if (ctx != null) {
+        ctx.startActivity(
+          Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_HOME)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          },
+        )
+      }
+    }
+
+    // Thin wiring onto `FocusService.notifyDismissed` -- every button on
+    // `focus/blocked.tsx` calls this, the same "every exit counts as a
+    // dismissal" rule `ReminderActivity` used to enforce for its own
+    // buttons.
+    Function("notifyDismissed") { pkg: String ->
+      FocusService.notifyDismissed(pkg)
+    }
+
+    // "5 daqiqa kutish" -- thin wiring onto `FocusService.snooze`, which
+    // reaches `PresentationGate.snooze`. See that class's doc for why this
+    // is an extension of the one suppression mechanism it already is,
+    // not a second one.
+    Function("snooze") { pkg: String ->
+      FocusService.snooze(pkg)
+    }
+
     Function("usageToday") {
       val ctx = appContext.reactContext ?: return@Function emptyList<Map<String, Any>>()
       val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager

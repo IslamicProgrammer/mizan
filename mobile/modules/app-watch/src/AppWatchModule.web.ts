@@ -26,6 +26,9 @@ class AppWatchModule extends NativeModule<{}> {
   appIcon(_pkg: string): string | null {
     return null;
   }
+  appLabel(_pkg: string): string | null {
+    return null;
+  }
   usageToday(): AppUsage[] {
     return [];
   }
@@ -34,6 +37,13 @@ class AppWatchModule extends NativeModule<{}> {
   isFocusRunning(): boolean {
     return false;
   }
+  focusMode(): BlockMode {
+    return 'remind';
+  }
+  resumeApp(_pkg: string): void {}
+  goHome(): void {}
+  notifyDismissed(_pkg: string): void {}
+  snooze(_pkg: string): void {}
   scheduleFajrAlarm(_atEpochMs: number): void {}
   scheduleTestAlarm(_atEpochMs: number): void {}
   cancelFajrAlarm(): void {}

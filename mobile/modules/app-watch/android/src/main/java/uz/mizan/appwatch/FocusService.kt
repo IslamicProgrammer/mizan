@@ -7,7 +7,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -101,6 +100,7 @@ class FocusService : Service() {
       blocked = (intent.getStringArrayListExtra(EXTRA_BLOCKED) ?: arrayListOf()).toSet()
       endsAt = intent.getLongExtra(EXTRA_ENDS_AT, 0L)
       mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_REMIND
+      currentMode = mode
       // `Number.MAX_SAFE_INTEGER` milliseconds (what the test switch in
       // focus/apps.tsx sends) is effectively "no end time" -- millions of
       // years out. A real focus session is never within a day of that, so
@@ -197,6 +197,15 @@ class FocusService : Service() {
     Log.w(TAG, message)
   }
 
+  /**
+   * [ReminderActivity] is a thin launcher now (block-screen.md): it carries
+   * nothing but the package name, and the RN screen it deep-links into
+   * resolves the label, the prayer and the minutes remaining itself, from
+   * `prayer.ts` and `packageManager` -- never recomputed here. `mode` is
+   * read back separately, through [currentMode] (`AppWatchModule`'s
+   * `focusMode` Function), not carried on this Intent or the deep link
+   * query string either.
+   */
   private fun presentReminder(pkg: String, now: Long) {
     gate.markPresented(pkg, now)
     val intent = Intent(this, ReminderActivity::class.java).apply {
@@ -206,8 +215,6 @@ class FocusService : Service() {
           Intent.FLAG_ACTIVITY_SINGLE_TOP,
       )
       putExtra(ReminderActivity.EXTRA_PACKAGE, pkg)
-      putExtra(ReminderActivity.EXTRA_LABEL, appLabel(pkg))
-      putExtra(ReminderActivity.EXTRA_MODE, mode)
     }
     Log.d(TAG, "launching ReminderActivity for $pkg (mode=$mode)")
     try {
@@ -220,12 +227,6 @@ class FocusService : Service() {
       Log.w(TAG, "failed to launch ReminderActivity for $pkg: ${e.message}")
       gate.markHidden(pkg)
     }
-  }
-
-  private fun appLabel(pkg: String): String = try {
-    packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
-  } catch (e: PackageManager.NameNotFoundException) {
-    pkg
   }
 
   private fun persistSession() {
@@ -243,6 +244,7 @@ class FocusService : Service() {
     // soften into a reminder because the sticky restart had no fresh intent
     // to read a mode from.
     mode = prefs.getString(PREF_MODE, MODE_REMIND) ?: MODE_REMIND
+    currentMode = mode
     testMode = endsAt - System.currentTimeMillis() > TEST_MODE_THRESHOLD_MS
   }
 
@@ -305,6 +307,20 @@ class FocusService : Service() {
     var isRunning: Boolean = false
       private set
 
+    /**
+     * Read by `AppWatchModule.focusMode` -- `focus/blocked.tsx` (block-
+     * screen.md) asks this to know whether the session it was deep-linked
+     * out of is a reminder or a lock, so it can show `Davom etish` (and let
+     * its own Back override resume the blocked app) only in the former.
+     * Defaults to `MODE_REMIND`, same "absent means remind" convention
+     * `index.ts` and `focus/apps.tsx` already keep -- this is never read
+     * before a session has set it for real, since nothing deep-links into
+     * that screen without one running.
+     */
+    @Volatile
+    var currentMode: String = MODE_REMIND
+      private set
+
     // The one live instance, for `ReminderActivity` to report a dismissal
     // back to -- there is exactly one session at a time (see the class
     // doc), so a single nullable reference is the whole mechanism, not a
@@ -317,6 +333,12 @@ class FocusService : Service() {
      * still on screen) -- there is nothing left to suppress for. */
     fun notifyDismissed(pkg: String) {
       instance?.gate?.markDismissed(pkg, System.currentTimeMillis())
+    }
+
+    /** "5 daqiqa kutish" (block-screen.md), called by `AppWatchModule.snooze`
+     * -- a no-op under the same condition as [notifyDismissed] above. */
+    fun snooze(pkg: String) {
+      instance?.gate?.snooze(pkg, System.currentTimeMillis())
     }
 
     fun start(ctx: Context, blocked: List<String>, endsAt: Long, mode: String = MODE_REMIND) {

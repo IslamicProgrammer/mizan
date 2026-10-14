@@ -23,10 +23,16 @@ interface AppWatchNative {
   foregroundPackage(): string | null;
   installedApps(): InstalledApp[];
   appIcon(pkg: string): string | null;
+  appLabel(pkg: string): string | null;
   usageToday(): AppUsage[];
   startFocus(blocked: string[], endsAt: number, mode: BlockMode): void;
   stopFocus(): void;
   isFocusRunning(): boolean;
+  focusMode(): BlockMode;
+  resumeApp(pkg: string): void;
+  goHome(): void;
+  notifyDismissed(pkg: string): void;
+  snooze(pkg: string): void;
   scheduleFajrAlarm(atEpochMs: number): void;
   scheduleTestAlarm(atEpochMs: number): void;
   cancelFajrAlarm(): void;
@@ -92,6 +98,14 @@ export function appIcon(pkg: string): string | null {
   return native?.appIcon(pkg) ?? null;
 }
 
+/** The blocked app's real name, resolved via `packageManager` -- never a
+ * hardcoded brand name. Falls back to the package name itself, rather than
+ * leaving `focus/blocked.tsx` with an empty space, when the label can't be
+ * resolved or there is no native module to ask (block-screen.md). */
+export function appLabel(pkg: string): string {
+  return native?.appLabel(pkg) ?? pkg;
+}
+
 export function usageToday(): AppUsage[] {
   return native?.usageToday() ?? [];
 }
@@ -125,6 +139,53 @@ export function stopFocus(): void {
 
 export function isFocusRunning(): boolean {
   return native?.isFocusRunning() ?? false;
+}
+
+/**
+ * The mode of the session `focus/blocked.tsx` was deep-linked out of --
+ * read back from `FocusService.currentMode`, not carried on the deep link
+ * (block-screen.md: "pass only the package name through the deep link").
+ * `'remind'` on every platform without the module, the same "absent means
+ * remind" default `startFocus` itself keeps.
+ */
+export function focusMode(): BlockMode {
+  return native?.focusMode() ?? 'remind';
+}
+
+/**
+ * Brings the blocked app back in front of the user -- `Davom etish` and
+ * "5 daqiqa kutish" both resume into it. What finishing `ReminderActivity`
+ * used to do for free, before that Activity stopped drawing a screen of
+ * its own for finishing it to reveal. A no-op if the app can no longer be
+ * launched (uninstalled between the reminder firing and the tap) or on
+ * every platform without the module.
+ */
+export function resumeApp(pkg: string): void {
+  native?.resumeApp(pkg);
+}
+
+/** `Bosh ekran` / "bugunga fokusni o'chirish"'s destination, and lock
+ * mode's own Back override on `focus/blocked.tsx` -- the one guarantee
+ * that screen exists to keep: there is no path back into the blocked app
+ * through Back, whatever the default Activity behaviour would otherwise
+ * have done. */
+export function goHome(): void {
+  native?.goHome();
+}
+
+/** Every button on `focus/blocked.tsx` calls this once, regardless of
+ * which one was tapped -- the same "every exit counts as a dismissal" rule
+ * `ReminderActivity` used to enforce for its own buttons, now called from
+ * where the buttons actually live. */
+export function notifyDismissed(pkg: string): void {
+  native?.notifyDismissed(pkg);
+}
+
+/** "5 daqiqa kutish": suppresses `pkg` for five minutes, then the block
+ * resumes on its own -- extends `PresentationGate`'s existing suppression
+ * mechanism (see its doc) rather than adding a parallel one. */
+export function snooze(pkg: string): void {
+  native?.snooze(pkg);
 }
 
 /**

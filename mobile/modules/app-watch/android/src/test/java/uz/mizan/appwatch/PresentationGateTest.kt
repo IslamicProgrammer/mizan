@@ -85,6 +85,40 @@ class PresentationGateTest {
   }
 
   @Test
+  fun `snoozing suppresses the package until the window ends`() {
+    val gate = PresentationGate()
+
+    gate.snooze(ALIBABA, 0L, durationMs = 5 * 60 * 1_000L)
+
+    // Inside the 5-minute window -- still suppressed, one millisecond short
+    // of the boundary.
+    assertNotNull(gate.suppressReason(ALIBABA, 5 * 60 * 1_000L - 1))
+    // The boundary itself is the first moment the block resumes.
+    assertNull(gate.suppressReason(ALIBABA, 5 * 60 * 1_000L))
+  }
+
+  @Test
+  fun `a snooze applies even with the dismissal rules disabled -- lock mode included`() {
+    val gate = PresentationGate()
+    gate.snooze(ALIBABA, 0L, durationMs = 60_000L)
+
+    // "5 daqiqa kutish" is a deliberate, mode-agnostic choice (block-
+    // screen.md) -- unlike the dismissal cutoff, it is never bypassed by
+    // `enforceDismissalRules = false`.
+    assertNotNull(gate.suppressReason(ALIBABA, 30_000L, enforceDismissalRules = false))
+  }
+
+  @Test
+  fun `reset clears a pending snooze for a fresh session`() {
+    val gate = PresentationGate()
+    gate.snooze(ALIBABA, 0L, durationMs = 5 * 60 * 1_000L)
+
+    gate.reset()
+
+    assertNull(gate.suppressReason(ALIBABA, 1_000L))
+  }
+
+  @Test
   fun `reset clears dismissals and the strobe guard for a fresh session`() {
     val gate = PresentationGate()
     gate.markPresented(ALIBABA, 0L)
