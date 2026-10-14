@@ -39,7 +39,11 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+// `__esModule: true` matters: auth.ts reaches this through `await import()`,
+// and without the flag Babel's interop wraps the mock so `GoogleSignin` is not
+// where the real ESM package puts it.
 jest.mock('@react-native-google-signin/google-signin', () => ({
+  __esModule: true,
   GoogleSignin: {
     configure: jest.fn(),
     hasPlayServices: jest.fn().mockResolvedValue(true),
@@ -205,5 +209,27 @@ describe("useSession's signed-out path", () => {
     expect(latest).toEqual({ session: null, loading: false });
     expect(pushState).not.toHaveBeenCalled();
     expect(pullState).not.toHaveBeenCalled();
+  });
+});
+
+describe('when the binary has no Google sign-in module', () => {
+  it('says so instead of taking the whole app down', async () => {
+    jest.resetModules();
+    // Reproduces Expo Go and any dev build made before the module was
+    // installed: requiring it throws. A static import here killed every screen
+    // in the app, twice, so this pins the guard rather than the symptom.
+    jest.doMock('@react-native-google-signin/google-signin', () => {
+      throw new Error("RNGoogleSignin could not be found");
+    });
+    let signIn: () => Promise<string | null> = async () => null;
+    jest.isolateModules(() => {
+      // `require`, not `import`: Jest's CommonJS environment refuses a dynamic
+      // import without --experimental-vm-modules, which is the same constraint
+      // that shaped the guard being tested.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      signIn = require('../auth').signInWithGoogle;
+    });
+    await expect(signIn()).resolves.toBe('Bu versiyada hisobga kirish mavjud emas.');
+    jest.resetModules();
   });
 });

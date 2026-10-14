@@ -14,18 +14,56 @@
  * the app: every function below resolves rather than throws, and nothing
  * here is on the path any other screen renders through.
  */
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useRef, useState } from 'react';
 
 import { pullState, pushState, signInToServer } from './api';
 import { getEnv } from './env';
+
 import { FIVE } from './prayer';
 import { stateForSync, useStore, ymd, type DayRecord, type State } from './store';
+
+type GoogleSigninModule = typeof import('@react-native-google-signin/google-signin');
+
+let googleModule: GoogleSigninModule | null | undefined;
+
+/**
+ * Loaded through a guarded `require`, and tolerated when it is absent.
+ *
+ * `@react-native-google-signin` is a native module, so importing it throws
+ * ("RNGoogleSignin could not be found") in any binary that does not contain
+ * it — Expo Go, or a development build made before it was installed. A static
+ * import does not merely disable sign-in, it takes the whole app down: this
+ * module never finishes evaluating, and `src/app/index.tsx` imports it, so
+ * every screen disappears. This project has hit that exact failure twice now,
+ * here and with expo-notifications.
+ *
+ * `require` rather than `await import()` because Jest's CommonJS environment
+ * refuses a dynamic import without --experimental-vm-modules, which would make
+ * this path untestable — and an untested guard is how the bug comes back.
+ */
+function loadGoogle(): GoogleSigninModule | null {
+  if (googleModule !== undefined) return googleModule;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    googleModule = require('@react-native-google-signin/google-signin') as GoogleSigninModule;
+  } catch {
+    googleModule = null;
+  }
+  return googleModule;
+}
 
 const TOKEN_KEY = 'mizan.auth.token.v1';
 
 const KIRISH_ERROR = "Kirib bo'lmadi. Internetni tekshiring va qayta urining.";
+
+/**
+ * Shown only when the binary has no Google sign-in module at all — Expo Go, or
+ * a development build made before it was installed. It is not a failure the
+ * user can do anything about, so it says so plainly rather than suggesting
+ * they check their connection.
+ */
+const NO_SIGNIN_BUILD = "Bu versiyada hisobga kirish mavjud emas.";
 
 /**
  * `SecureStore` is backed by native Keystore/Keychain, which does not exist
@@ -173,6 +211,9 @@ export function useSession(): { session: Session; loading: boolean } {
  */
 export async function signInWithGoogle(): Promise<string | null> {
   try {
+    const google = loadGoogle();
+    if (!google) return NO_SIGNIN_BUILD;
+    const { GoogleSignin } = google;
     GoogleSignin.configure({ webClientId: getEnv().googleClientId });
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const result = await GoogleSignin.signIn();
@@ -199,7 +240,8 @@ export async function signOut(): Promise<void> {
   await clearToken();
   syncedForToken = null;
   try {
-    await GoogleSignin.signOut();
+    const google = loadGoogle();
+    if (google) await google.GoogleSignin.signOut();
   } catch {
     // Our own token is already gone, which is what makes the user signed
     // out from this app's point of view regardless of Google's own cache.
