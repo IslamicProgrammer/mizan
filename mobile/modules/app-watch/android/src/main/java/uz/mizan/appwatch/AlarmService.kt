@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -41,6 +43,20 @@ class AlarmService : Service() {
   private var player: MediaPlayer? = null
   private val handler = Handler(Looper.getMainLooper())
   private var rampStep = 0
+
+  // Task 33 added a Quran recitation player elsewhere in the app, on its own
+  // `doNotMix` audio focus (expo-audio's default when told not to mix) --
+  // which exists specifically so that whichever app or service asks for
+  // focus next can make it yield. Claiming focus here, right before the
+  // alarm sound starts, is that ask: expo-audio's player (and any other
+  // focus-respecting app) receives the loss and pauses itself. Nothing below
+  // reads the result of this request -- `startRinging` still calls
+  // `MediaPlayer.start()` unconditionally -- because the alarm plays on
+  // `STREAM_ALARM` regardless of focus either way; this is purely about
+  // making everything else on the device get out of its way, not a
+  // precondition for the alarm itself.
+  private var audioFocusRequest: AudioFocusRequest? = null
+  private val noopFocusListener = AudioManager.OnAudioFocusChangeListener {}
 
   private val ramp = object : Runnable {
     override fun run() {
@@ -97,7 +113,52 @@ class AlarmService : Service() {
 
   override fun onBind(intent: Intent?): IBinder? = null
 
+  private fun claimAudioFocus() {
+    try {
+      val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+          .setAudioAttributes(
+            AudioAttributes.Builder()
+              .setUsage(AudioAttributes.USAGE_ALARM)
+              .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+              .build(),
+          )
+          .build()
+        audioFocusRequest = request
+        am.requestAudioFocus(request)
+      } else {
+        @Suppress("DEPRECATION")
+        am.requestAudioFocus(
+          noopFocusListener,
+          AudioManager.STREAM_ALARM,
+          AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE,
+        )
+      }
+    } catch (e: Exception) {
+      // Never blocks the ring itself -- see the field comment above.
+      Log.w(TAG, "could not claim audio focus: ${e.message}")
+    }
+  }
+
+  private fun releaseAudioFocus() {
+    try {
+      val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+      } else {
+        @Suppress("DEPRECATION")
+        am.abandonAudioFocus(noopFocusListener)
+      }
+    } catch (e: Exception) {
+      // Nothing left to release if the request itself never succeeded.
+    } finally {
+      audioFocusRequest = null
+    }
+  }
+
   private fun startRinging() {
+    claimAudioFocus()
     val uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
       ?: RingtoneManager.getValidRingtoneUri(this)
     rampStep = 0
@@ -140,6 +201,11 @@ class AlarmService : Service() {
       }
     }
     player = null
+    // Abandoning focus is what lets whatever this interrupted -- the
+    // recitation player above all -- resume on its own once the alarm is
+    // actually done, rather than staying paused forever because this
+    // service never gave focus back.
+    releaseAudioFocus()
   }
 
   private fun buildNotification(): Notification {

@@ -164,6 +164,23 @@ export type State = {
    * yet, and the garden and streak both need to tell the two apart.
    */
   startedAt?: string;
+  /**
+   * The Quran reader's own tracker (task 33) -- the thing the owner actually
+   * asked for when they saw the daily-ayah card. `null` until the reader has
+   * ever been opened; set on every ayah change, whether that change came
+   * from scrolling, tapping an ayah's own play button, or the recitation
+   * advancing to the next one. The surah list's "Davom etish" banner and the
+   * home card both read this, never a separate "last surah" field that could
+   * fall out of sync with it.
+   */
+  reading: { surah: number; ayah: number } | null;
+  /**
+   * The reciter chosen in the reader's picker, by `quran.com` id -- `null`
+   * until the user has ever picked one, which `recitation.ts`'s caller
+   * resolves to a sensible default rather than forcing a choice before the
+   * first tap on play.
+   */
+  reciter: number | null;
 };
 
 /**
@@ -221,6 +238,8 @@ const DEFAULTS: State = {
   focusByDay: {},
   blockedApps: [],
   cycles: [],
+  reading: null,
+  reciter: null,
 };
 
 const EMPTY_MARKS: Record<PrayerId, PrayerMark> = {
@@ -327,6 +346,10 @@ type Store = State & {
    * exactly that).
    */
   applyRemoteHistory: (remoteHistory: Record<string, DayRecord>) => void;
+  /** Records where the reader is. See `reading` above for when to call this. */
+  setReading: (surah: number, ayah: number) => void;
+  /** Remembers the reciter picker's choice. */
+  setReciter: (id: number) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -546,6 +569,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           delete history[ymd(new Date())];
           return { ...s, history };
         }),
+      setReading: (surah, ayah) => setState((s) => ({ ...s, reading: { surah, ayah } })),
+      setReciter: (id) => setState((s) => ({ ...s, reciter: id })),
       finishOnboarding: () => setState((s) => ({ ...s, onboarded: true })),
       // Wipes real history rather than replacing it with invented days.
       // `startedAt` is set to today because a fresh start has no past in

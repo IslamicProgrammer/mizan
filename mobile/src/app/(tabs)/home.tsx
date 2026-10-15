@@ -264,14 +264,23 @@ export default function Home() {
             Qur'anic presence anywhere on screen. Absent entirely when
             `ayah` is `null` -- see the effect above -- rather than a
             skeleton or an error state, because there is nothing honest to
-            show yet. Not a `Pressable`: it isn't wired to anything until the
-            reader lands in task 32, and a card shaped like a button that
-            does nothing on tap is the same defect as a sheet grabber that
-            cannot be grabbed. */}
+            show yet. Now a `Pressable` (task 33): it was deliberately inert
+            until the reader existed to open, and a card shaped like a button
+            that does nothing on tap was the same defect as a sheet grabber
+            that cannot be grabbed -- the reader is that grabber now. */}
         {ayah ? (
           <>
             <SectionHead title="Kunlik oyat" />
-            <View style={[s.ayahCard, lift.low]}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: '/quran/[surah]',
+                  params: { surah: String(ayah.surah), ayah: String(ayah.ayah) },
+                })
+              }
+              style={[s.ayahCard, lift.low]}
+            >
               <View style={s.ayahAccent} />
               <Text style={s.ayahArabic}>{ayah.arabic}</Text>
               <Text style={s.ayahUzbek}>{ayah.uzbek}</Text>
@@ -281,7 +290,7 @@ export default function Home() {
                   the translator and explains, quietly, why the text above it
                   looks different from everything else on screen. */}
               <Text style={s.ayahCredit}>Tarjima: Muhammad Sodiq Muhammad Yusuf (kirill)</Text>
-            </View>
+            </Pressable>
           </>
         ) : null}
       </ScrollView>

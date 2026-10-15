@@ -5,6 +5,7 @@ import { ENV } from './env.js';
 import { authRoutes } from './routes/auth.js';
 import { ayahRoutes } from './routes/ayah.js';
 import { profileRoutes } from './routes/profile.js';
+import { quranRoutes } from './routes/quran.js';
 import { scanRoutes } from './routes/scan.js';
 
 const app = Fastify({ logger: true });
@@ -18,6 +19,7 @@ await app.register(authRoutes);
 await app.register(profileRoutes);
 await app.register(scanRoutes);
 await app.register(ayahRoutes);
+await app.register(quranRoutes);
 
 await migrate();
 await app.listen({ port: ENV.port, host: '0.0.0.0' });

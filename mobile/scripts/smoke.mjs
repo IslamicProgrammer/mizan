@@ -24,6 +24,7 @@ const ROUTES = [
   '/focus', '/focus/apps', '/focus/active', '/focus/blocked', '/focus/stats',
   '/alarm/ringing', '/alarm/success',
   '/charity/reports', '/charity/report',
+  '/quran', '/quran/1',
 ];
 const CHROME =
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';

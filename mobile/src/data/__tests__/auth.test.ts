@@ -116,6 +116,8 @@ function baseState(overrides: Partial<State> = {}): State {
     focusByDay: {},
     blockedApps: [],
     cycles: [{ from: '2025-12-01', to: '2025-12-05' }],
+    reading: null,
+    reciter: null,
     ...overrides,
   };
 }
