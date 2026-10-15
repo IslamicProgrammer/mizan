@@ -39,10 +39,7 @@ export default function PrayerSheet() {
   };
 
   return (
-    <View style={s.root}>
-      <Pressable style={s.scrim} accessibilityLabel="Yopish" accessibilityRole="button" onPress={() => router.back()} />
-      <View style={[s.sheet, { paddingBottom: insets.bottom + 22 }]}>
-        <View style={s.grab} />
+    <View style={[s.sheet, { paddingBottom: insets.bottom + 22 }]}>
         <View style={s.who}>
           {slot ? <Image source={ICONS[slot.icon]} style={s.whoIcon} contentFit="contain" /> : null}
           <View style={s.flex}>
@@ -85,17 +82,13 @@ export default function PrayerSheet() {
           </View>
           <Toggle value={false} />
         </View>
-      </View>
     </View>
   );
 }
 
-const FILL = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const;
-
 const s = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1, justifyContent: 'flex-end' },
-  scrim: { ...FILL, backgroundColor: 'rgba(43,31,17,.42)' },
   sheet: {
     paddingTop: 14,
     paddingHorizontal: 24,

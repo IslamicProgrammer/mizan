@@ -100,7 +100,22 @@ export default function RootLayout() {
             {/* Full-screen moments: these take over the whole screen, so they
                 present from the bottom rather than sliding in like a page. */}
             <Stack.Screen name="alarm" options={{ animation: 'fade', gestureEnabled: false }} />
-            <Stack.Screen name="prayer-sheet" options={{ presentation: 'transparentModal', animation: 'fade' }} />
+            <Stack.Screen
+              name="prayer-sheet"
+              options={{
+                // A real native sheet, not a transparent modal that fades in.
+                // `transparentModal` + `animation: 'fade'` meant it appeared
+                // instantly with a grabber that could not be grabbed — the
+                // shape of a bottom sheet with none of the behaviour. This
+                // gives the system's own sheet: it slides, it can be dragged
+                // down to dismiss, and the grabber is real.
+                presentation: 'formSheet',
+                sheetAllowedDetents: 'fitToContents',
+                sheetGrabberVisible: true,
+                sheetCornerRadius: 28,
+                animation: 'slide_from_bottom',
+              }}
+            />
           </Stack>
         </StoreProvider>
       </SafeAreaProvider>
