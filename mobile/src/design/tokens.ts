@@ -77,6 +77,14 @@ export const font = {
   bold: 'Onest_700Bold',
   extrabold: 'Onest_800ExtraBold',
   black: 'Onest_900Black',
+  /**
+   * Onest has no Arabic glyphs. Quranic text (the daily-ayah card, task 31,
+   * and the reader it leads into in task 32) needs a face built for Uthmani
+   * diacritics specifically, not whatever Arabic fallback a given device
+   * ships -- that differs phone to phone and places the marks wrong. Loaded
+   * in `_layout.tsx` beside the Onest weights.
+   */
+  arabic: 'Amiri_400Regular',
 } as const;
 
 /** Motion. One place, so timings stay consistent across every screen. */

@@ -8,6 +8,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { Backdrop } from '../../design/Backdrop';
 import { color, font, layout, lift, size } from '../../design/tokens';
 import { ICONS, type IconKey } from '../../data/icons';
+import { loadDailyAyah, type DailyAyah } from '../../data/ayah';
 import { canScheduleExact, isFocusRunning, nextFajrAlarmAt } from '../../../modules/app-watch';
 import { nextFajrAt } from '../../data/alarm';
 import {
@@ -80,6 +81,24 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const { settings, marks, primaryFeature } = useStore();
   const [now, setNow] = useState(new Date());
+
+  // Starts `null` and stays that way until `loadDailyAyah` resolves -- no
+  // spinner, because this is the first screen the app draws and must never
+  // wait on a network call. `null` is also the correct, final state on a
+  // first launch offline with nothing cached yet: the card below simply
+  // doesn't render, which is the whole point of task 31 over an error card
+  // where scripture should be. See `data/ayah.ts` for the cache-then-fetch
+  // order this runs in.
+  const [ayah, setAyah] = useState<DailyAyah | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadDailyAyah()
+      .then((a) => alive && setAyah(a))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // The hero is a live countdown — a frozen clock is the fastest way to make a
   // demo feel dead. One tick a second is plenty at minute resolution.
@@ -240,6 +259,31 @@ export default function Home() {
             );
           })}
         </ScrollView>
+
+        {/* The lower third the owner flagged as empty, and the app's first
+            Qur'anic presence anywhere on screen. Absent entirely when
+            `ayah` is `null` -- see the effect above -- rather than a
+            skeleton or an error state, because there is nothing honest to
+            show yet. Not a `Pressable`: it isn't wired to anything until the
+            reader lands in task 32, and a card shaped like a button that
+            does nothing on tap is the same defect as a sheet grabber that
+            cannot be grabbed. */}
+        {ayah ? (
+          <>
+            <SectionHead title="Kunlik oyat" />
+            <View style={[s.ayahCard, lift.low]}>
+              <View style={s.ayahAccent} />
+              <Text style={s.ayahArabic}>{ayah.arabic}</Text>
+              <Text style={s.ayahUzbek}>{ayah.uzbek}</Text>
+              <Text style={s.ayahRef}>{ayah.reference}</Text>
+              {/* Sodiq's translation is published only in Cyrillic -- the
+                  rest of this app's UI is Latin -- so this line both credits
+                  the translator and explains, quietly, why the text above it
+                  looks different from everything else on screen. */}
+              <Text style={s.ayahCredit}>Tarjima: Muhammad Sodiq Muhammad Yusuf (kirill)</Text>
+            </View>
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -360,4 +404,31 @@ const s = StyleSheet.create({
   cardTime: { fontFamily: font.bold, fontSize: 15, color: color.ink, fontVariant: ['tabular-nums'] },
   cardDone: { color: '#5F7D59' },
   onInk: { color: '#40290C' },
+
+  // This sits in the empty lower third the owner called out, so it is
+  // deliberately roomy rather than packed to match the cards above it --
+  // the space itself is part of what the card is answering for.
+  ayahCard: {
+    marginTop: 4,
+    marginHorizontal: layout.gutter,
+    borderRadius: layout.radius.lg,
+    backgroundColor: color.surface,
+    padding: 22,
+    gap: 14,
+  },
+  ayahAccent: { width: 28, height: 3, borderRadius: 2, backgroundColor: color.glowPeak },
+  ayahArabic: {
+    fontFamily: font.arabic,
+    fontSize: size.display,
+    // Uthmani diacritics sit above and below the baseline and clip at a
+    // normal line height -- this is looser than any other text in the app
+    // on purpose.
+    lineHeight: size.display * 1.95,
+    color: color.ink,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  ayahUzbek: { fontFamily: font.medium, fontSize: size.body, lineHeight: 24, color: color.inkWarm },
+  ayahRef: { fontFamily: font.semibold, fontSize: size.tiny, color: color.inkSoft },
+  ayahCredit: { fontFamily: font.regular, fontSize: 10.5, color: color.inkSoft },
 });

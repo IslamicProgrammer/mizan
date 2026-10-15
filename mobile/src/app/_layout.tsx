@@ -1,3 +1,4 @@
+import { Amiri_400Regular } from '@expo-google-fonts/amiri';
 import {
   Onest_400Regular,
   Onest_500Medium,
@@ -71,6 +72,13 @@ export default function RootLayout() {
 
   // Onest carries the whole type system, including the 900-weight hero
   // numerals. Rendering before it loads causes a visible reflow, so hold.
+  //
+  // Amiri is loaded alongside it rather than left to fall back to whatever
+  // Arabic glyphs the device ships: that fallback differs phone to phone and
+  // renders Uthmani diacritics (the daily-ayah card, task 31) in the wrong
+  // places, which a generic system Arabic face is not built to typeset
+  // correctly. Amiri is designed for Qur'anic text specifically and is
+  // SIL-OFL-1.1 licensed, free to bundle.
   const [ready] = useFonts({
     Onest_400Regular,
     Onest_500Medium,
@@ -78,6 +86,7 @@ export default function RootLayout() {
     Onest_700Bold,
     Onest_800ExtraBold,
     Onest_900Black,
+    Amiri_400Regular,
   });
 
   if (!ready) return null;
