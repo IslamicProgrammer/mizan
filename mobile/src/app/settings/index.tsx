@@ -35,10 +35,16 @@ export default function Settings() {
       >
         <View style={[s.profile, lift.low]}>
           <View style={s.avatar}>
-            <Image source={ICONS.profile} style={s.avatarIcon} contentFit="contain" />
+            {session?.profile?.photo ? (
+              <Image source={{ uri: session.profile.photo }} style={s.avatarPhoto} contentFit="cover" />
+            ) : (
+              <Image source={ICONS.profile} style={s.avatarIcon} contentFit="contain" />
+            )}
           </View>
           <View style={s.flex}>
-            <Text style={s.profileName}>{session ? 'Hisobingiz faol' : 'Hisobga kirish'}</Text>
+            <Text style={s.profileName}>
+              {session ? session.profile?.givenName || session.profile?.name || 'Hisobingiz faol' : 'Hisobga kirish'}
+            </Text>
             <Text style={s.profileSub}>
               {session ? "Namoz tariximiz hisobingizga saqlanadi." : 'Tariximiz saqlanishi uchun hisobga kiring.'}
             </Text>
@@ -151,8 +157,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 13,
   },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(80,50,15,.08)', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(80,50,15,.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarIcon: { width: 20, height: 20 },
+  avatarPhoto: { width: 40, height: 40 },
   profileName: { fontFamily: font.bold, fontSize: 15.5, color: color.ink },
   profileSub: { fontFamily: font.medium, fontSize: size.tiny, color: color.inkSoft, marginTop: 2 },
   version: { textAlign: 'center', marginTop: 22, fontFamily: font.medium, fontSize: 11.5, color: color.inkSoft },

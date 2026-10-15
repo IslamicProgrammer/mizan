@@ -5,7 +5,7 @@ import { act, create } from 'react-test-renderer';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 import { pullState, pushState, signInToServer } from '../api';
-import { buildSyncBody, signInWithGoogle, signOut, useSession } from '../auth';
+import { buildSyncBody, getProfile, signInWithGoogle, signOut, useSession } from '../auth';
 import { StoreProvider, useStore, type State } from '../store';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -68,6 +68,22 @@ const secureMock = SecureStore as unknown as {
   __reset: () => void;
 };
 const TOKEN_KEY = 'mizan.auth.token.v1';
+const PROFILE_KEY = 'mizan.auth.profile.v1';
+
+/** Shape of the real `User` the Google SDK hands `signIn()` on success --
+ * mirrored here rather than imported, since the mock below stands in for
+ * the native module entirely. */
+function googleUser(overrides: Partial<{ name: string | null; givenName: string | null; photo: string | null }> = {}) {
+  return {
+    id: 'g1',
+    email: 'driver@example.com',
+    name: 'Jahongir Aliyev',
+    givenName: 'Jahongir',
+    familyName: 'Aliyev',
+    photo: 'https://lh3.googleusercontent.com/a/photo.jpg',
+    ...overrides,
+  };
+}
 
 afterEach(() => {
   secureMock.__reset();
@@ -137,7 +153,44 @@ describe('signInWithGoogle', () => {
   const mockedSignInToServer = signInToServer as jest.Mock;
 
   it('stores the server JWT in SecureStore on success, never AsyncStorage', async () => {
-    mockedSignIn.mockResolvedValueOnce({ type: 'success', data: { idToken: 'google-id-token' } });
+    mockedSignIn.mockResolvedValueOnce({
+      type: 'success',
+      data: { idToken: 'google-id-token', user: googleUser() },
+    });
+    mockedSignInToServer.mockResolvedValueOnce({ token: 'jwt-abc', userId: 'u1' });
+
+    const err = await signInWithGoogle();
+
+    expect(err).toBeNull();
+    expect(secureMock.__store()[TOKEN_KEY]).toBe('jwt-abc');
+  });
+
+  it("captures the Google result's name, givenName and photo alongside the token", async () => {
+    mockedSignIn.mockResolvedValueOnce({
+      type: 'success',
+      data: { idToken: 'google-id-token', user: googleUser() },
+    });
+    mockedSignInToServer.mockResolvedValueOnce({ token: 'jwt-abc', userId: 'u1' });
+
+    await signInWithGoogle();
+
+    expect(JSON.parse(secureMock.__store()[PROFILE_KEY]!)).toEqual({
+      name: 'Jahongir Aliyev',
+      givenName: 'Jahongir',
+      photo: 'https://lh3.googleusercontent.com/a/photo.jpg',
+    });
+    await expect(getProfile()).resolves.toEqual({
+      name: 'Jahongir Aliyev',
+      givenName: 'Jahongir',
+      photo: 'https://lh3.googleusercontent.com/a/photo.jpg',
+    });
+  });
+
+  it('still signs in when Google omits a name or photo -- cosmetic fields, never a reason to fail', async () => {
+    mockedSignIn.mockResolvedValueOnce({
+      type: 'success',
+      data: { idToken: 'google-id-token', user: googleUser({ name: null, givenName: null, photo: null }) },
+    });
     mockedSignInToServer.mockResolvedValueOnce({ token: 'jwt-abc', userId: 'u1' });
 
     const err = await signInWithGoogle();
@@ -182,6 +235,17 @@ describe('signOut', () => {
     await signOut();
 
     expect(secureMock.__store()[TOKEN_KEY]).toBeUndefined();
+  });
+
+  it('clears the captured profile along with the token', async () => {
+    secureMock.__setAvailable(true);
+    secureMock.__store()[TOKEN_KEY] = 'jwt-abc';
+    secureMock.__store()[PROFILE_KEY] = JSON.stringify({ name: 'Jahongir Aliyev', givenName: 'Jahongir', photo: null });
+
+    await signOut();
+
+    expect(secureMock.__store()[PROFILE_KEY]).toBeUndefined();
+    await expect(getProfile()).resolves.toBeNull();
   });
 });
 

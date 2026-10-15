@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Bar, Button, Screen, Tiles } from '../../components/ui';
-import { signInWithGoogle, signOut, useSession } from '../../data/auth';
+import { getProfile, signInWithGoogle, signOut, useSession, type Profile as GoogleProfile } from '../../data/auth';
 import { ICONS } from '../../data/icons';
 import { useStore } from '../../data/store';
 import { color, font, layout, lift, size } from '../../design/tokens';
@@ -22,6 +22,11 @@ export default function Profile() {
   // on anything to re-render it.
   const [signedInOverride, setSignedInOverride] = useState<boolean | null>(null);
   const signedIn = signedInOverride ?? !!session;
+  // Same reasoning as `signedInOverride`: a tap that just signed in has
+  // already captured the name and photo in SecureStore, but `useSession`
+  // will not notice without a remount this screen never gets.
+  const [profileOverride, setProfileOverride] = useState<GoogleProfile | null | undefined>(undefined);
+  const profile = profileOverride !== undefined ? profileOverride : (session?.profile ?? null);
   // A real, derived total — every prayer this install ever recorded, plus
   // whatever has been kept so far today (today has not reached `history`
   // yet; see store.tsx's roll-over).
@@ -33,10 +38,14 @@ export default function Profile() {
     if (signedIn) {
       await signOut();
       setSignedInOverride(false);
+      setProfileOverride(null);
     } else {
       const err = await signInWithGoogle();
       if (err) setError(err);
-      else setSignedInOverride(true);
+      else {
+        setSignedInOverride(true);
+        setProfileOverride(await getProfile());
+      }
     }
     setBusy(false);
   };
@@ -47,9 +56,17 @@ export default function Profile() {
 
       <View style={s.head}>
         <View style={[s.avatar, lift.high]}>
-          <Image source={ICONS.profile} style={s.avatarIcon} contentFit="contain" />
+          {signedIn && profile?.photo ? (
+            // Google's own CDN URL, fetched directly -- Task 28's "keep it
+            // local" means we never copy this image to our own storage.
+            <Image source={{ uri: profile.photo }} style={s.avatarPhoto} contentFit="cover" />
+          ) : (
+            <Image source={ICONS.profile} style={s.avatarIcon} contentFit="contain" />
+          )}
         </View>
-        <Text style={s.name}>{signedIn ? 'Hisobingiz faol' : 'Hisobga kirish'}</Text>
+        <Text style={s.name}>
+          {signedIn ? profile?.givenName || profile?.name || 'Hisobingiz faol' : 'Hisobga kirish'}
+        </Text>
         <Text style={s.joined}>
           {signedIn
             ? 'Namoz tariximiz hisobingizga saqlanadi.'
@@ -86,8 +103,9 @@ export default function Profile() {
 const s = StyleSheet.create({
   gap: { height: 16 },
   head: { alignItems: 'center', paddingTop: 10 },
-  avatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(80,50,15,.08)', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(80,50,15,.08)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarIcon: { width: 36, height: 36 },
+  avatarPhoto: { width: 76, height: 76 },
   name: { marginTop: 12, fontFamily: font.extrabold, fontSize: 23, letterSpacing: -0.4, color: color.ink },
   joined: { fontFamily: font.medium, fontSize: size.tiny, color: color.inkSoft, marginTop: 3 },
   foot: { marginTop: 20, marginHorizontal: layout.gutter, gap: 10 },

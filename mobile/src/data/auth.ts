@@ -55,6 +55,17 @@ function loadGoogle(): GoogleSigninModule | null {
 
 const TOKEN_KEY = 'mizan.auth.token.v1';
 
+/**
+ * Whatever Google's sign-in result hands us beyond the ID token, for the
+ * profile and settings screens to show. Deliberately not sent to our
+ * server: `email` already lives on the user row there (Task 8), and `photo`
+ * is a URL on Google's own CDN, so displaying it costs us no storage of our
+ * own -- Task 28's "keep it local".
+ */
+export type Profile = { name: string | null; givenName: string | null; photo: string | null };
+
+const PROFILE_KEY = 'mizan.auth.profile.v1';
+
 const KIRISH_ERROR = "Kirib bo'lmadi. Internetni tekshiring va qayta urining.";
 
 /**
@@ -101,6 +112,42 @@ async function setToken(token: string): Promise<void> {
 async function clearToken(): Promise<void> {
   try {
     if (await secureAvailable()) await SecureStore.deleteItemAsync(TOKEN_KEY);
+  } catch {
+    // Nothing left to clear if the read/write path is already unavailable.
+  }
+}
+
+/** Exported, not just internal: `profile.tsx`'s own sign-in button updates
+ * its screen from the tap handler directly (see `useSession`'s doc comment
+ * on why a hook read alone would not notice), so it needs this same read
+ * available without waiting for a remount. */
+export async function getProfile(): Promise<Profile | null> {
+  try {
+    if (!(await secureAvailable())) return null;
+    const raw = await SecureStore.getItemAsync(PROFILE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    return parsed as Profile;
+  } catch {
+    // A corrupt or unreadable blob is treated the same as "never set" --
+    // the name and photo are cosmetic, never a reason to break sign-in.
+    return null;
+  }
+}
+
+async function setProfile(profile: Profile): Promise<void> {
+  try {
+    if (await secureAvailable()) await SecureStore.setItemAsync(PROFILE_KEY, JSON.stringify(profile));
+  } catch {
+    // Same as setToken: still signed in for this run; the name and photo
+    // are simply re-captured next time this device signs in.
+  }
+}
+
+async function clearProfile(): Promise<void> {
+  try {
+    if (await secureAvailable()) await SecureStore.deleteItemAsync(PROFILE_KEY);
   } catch {
     // Nothing left to clear if the read/write path is already unavailable.
   }
@@ -168,12 +215,14 @@ async function syncNow(token: string, store: Store): Promise<void> {
 // documents — not once per screen visited.
 let syncedForToken: string | null = null;
 
-export type Session = { token: string } | null;
+export type Session = { token: string; profile: Profile | null } | null;
 
-/** The account gate's one read: a token in SecureStore, or none. */
+/** The account gate's one read: a token in SecureStore, or none, plus
+ * whatever profile (name, photo) was captured alongside it. */
 export function useSession(): { session: Session; loading: boolean } {
   const store = useStore();
   const [token, setTok] = useState<string | null>(null);
+  const [profile, setProf] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const storeRef = useRef(store);
   useEffect(() => {
@@ -182,9 +231,10 @@ export function useSession(): { session: Session; loading: boolean } {
 
   useEffect(() => {
     let live = true;
-    getToken().then((t) => {
+    Promise.all([getToken(), getProfile()]).then(([t, p]) => {
       if (!live) return;
       setTok(t);
+      setProf(p);
       setLoading(false);
     });
     return () => {
@@ -200,7 +250,7 @@ export function useSession(): { session: Session; loading: boolean } {
     syncNow(token, storeRef.current).catch(() => {});
   }, [token]);
 
-  return { session: token ? { token } : null, loading };
+  return { session: token ? { token, profile } : null, loading };
 }
 
 /**
@@ -225,6 +275,11 @@ export async function signInWithGoogle(): Promise<string | null> {
     if (!auth) return KIRISH_ERROR;
 
     await setToken(auth.token);
+    // Best-effort, after the token that actually gates the account: a name
+    // or photo that fails to save still leaves the user signed in, just
+    // showing the generic "Hisobingiz faol" copy instead of their own name.
+    const u = result.data.user;
+    await setProfile({ name: u.name, givenName: u.givenName, photo: u.photo });
     return null;
   } catch {
     return KIRISH_ERROR;
@@ -238,6 +293,7 @@ export async function signInWithGoogle(): Promise<string | null> {
  */
 export async function signOut(): Promise<void> {
   await clearToken();
+  await clearProfile();
   syncedForToken = null;
   try {
     const google = loadGoogle();

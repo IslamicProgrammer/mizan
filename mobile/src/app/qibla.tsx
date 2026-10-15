@@ -1,12 +1,13 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Magnetometer } from 'expo-sensors';
+import * as Location from 'expo-location';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Bar, Screen } from '../components/ui';
+import { isAligned, isCalibrated, usableHeading } from '../data/compass';
 import { ICONS } from '../data/icons';
 import { TASHKENT, qiblaDegrees } from '../data/prayer';
 import { color, font, layout, lift, motion, size } from '../design/tokens';
@@ -18,40 +19,83 @@ const C = DIAL / 2;
 const ALIGNED = 8;
 
 /**
- * Qibla compass, matching design-v3/qibla.html.
+ * Why the OS's `trueHeading`, not the raw magnetometer: `trueHeading` is
+ * declination-corrected by the platform and comes with a 0-3 calibration
+ * `accuracy`, which is the one thing the old `Magnetometer` + `atan2` code
+ * had no way to report. Below "medium" (2), the reading is guesswork, and a
+ * confident needle here is worse than one that admits it does not know --
+ * this is a direction people pray toward.
  *
- * The bearing is real (computed from coordinates). The heading comes from the
- * magnetometer, which a device has and a simulator does not — there the dial
- * simply holds at north, which is honest rather than faked.
+ * `reason` tracks why there is no trustworthy heading, not just whether
+ * there is one, because the honest fallback text differs: a denied location
+ * permission is fixable by the user, a missing magnetometer is not.
  */
+type Reason = 'granted' | 'denied' | 'no-sensor';
+
 export default function Qibla() {
   const bearing = qiblaDegrees();
   const [heading, setHeading] = useState(0);
-  const [hasSensor, setHasSensor] = useState(false);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [reason, setReason] = useState<Reason>('denied');
   const rot = useSharedValue(0);
 
   useEffect(() => {
+    let live = true;
     let sub: { remove: () => void } | undefined;
-    Magnetometer.isAvailableAsync().then((ok) => {
-      setHasSensor(ok);
-      if (!ok) return;
-      Magnetometer.setUpdateInterval(100);
-      sub = Magnetometer.addListener(({ x, y }) => {
-        const deg = (Math.atan2(y, x) * 180) / Math.PI;
-        setHeading((deg + 360) % 360);
-      });
-    });
-    return () => sub?.remove();
+
+    (async () => {
+      const perm = await Location.requestForegroundPermissionsAsync().catch(
+        () => ({ status: 'denied' as const }),
+      );
+      if (!live) return;
+      if (perm.status !== 'granted') {
+        setReason('denied');
+        return;
+      }
+      try {
+        sub = await Location.watchHeadingAsync((h) => {
+          if (!live) return;
+          setHeading(usableHeading(h));
+          setAccuracy(h.accuracy);
+        });
+        if (live) setReason('granted');
+        else sub.remove();
+      } catch {
+        if (live) setReason('no-sensor');
+      }
+    })();
+
+    return () => {
+      live = false;
+      sub?.remove();
+    };
   }, []);
 
-  // Spring rather than snap: magnetometer readings are jittery, and a needle
-  // that twitches every frame reads as broken rather than live.
+  const hasSensor = reason === 'granted';
+  const calibrated = accuracy !== null && isCalibrated(accuracy);
+
+  // Spring rather than snap: even a calibrated heading is jittery frame to
+  // frame, and a needle that twitches every update reads as broken rather
+  // than live.
   const target = bearing - heading;
   rot.set(withSpring(target, motion.spring));
-  const needle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.get()}deg` }] }));
+  const needle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rot.get()}deg` }],
+    // Dimmed, not hidden: the direction is still the best guess available,
+    // but an uncalibrated needle must look less certain than a calibrated
+    // one, not identical to it.
+    opacity: hasSensor && !calibrated ? 0.55 : 1,
+  }));
 
-  const off = Math.abs(((target % 360) + 540) % 360 - 180);
-  const aligned = off > 180 - ALIGNED;
+  const aligned = hasSensor && calibrated && isAligned(bearing, heading, ALIGNED);
+
+  const tip = !hasSensor
+    ? reason === 'denied'
+      ? "Yo'nalishni tekshirish uchun joylashuv ruxsati kerak. Ruxsat berilmagan bo'lsa, daraja hali ham to'g'ri -- strelka shunchaki aylanmaydi."
+      : "Bu qurilmada magnit sensor yo'q, shuning uchun strelka aylanmaydi. Yo'nalish darajasi to'g'ri."
+    : !calibrated
+      ? "Kompas hali sozlanmagan. Telefonni metall buyumlardan uzoqroq tutib, sakkiz (8) raqami shaklida bir necha marta aylantiring."
+      : "Telefonni tekis ushlang va metall buyumlardan uzoqroq turing. Kompas sozlanmasa, telefonni sakkiz shaklida aylantiring.";
 
   return (
     <Screen glow="soft" pad={false} scroll={false}>
@@ -104,21 +148,28 @@ export default function Qibla() {
         </View>
 
         {hasSensor ? (
-          <View style={[s.ok, !aligned && s.okOff]}>
-            <Svg width={18} height={18} viewBox="0 0 24 24">
-              <Path
-                d={aligned ? 'M20 6 9 17l-5-5' : 'M12 4v10M12 18h.01'}
-                stroke={aligned ? '#4E6A49' : '#8A7A5E'}
-                strokeWidth={2.6}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </Svg>
-            <Text style={[s.okText, !aligned && s.okTextOff]}>
-              {aligned ? "Telefon to'g'ri yo'nalishda" : 'Telefonni aylantiring'}
-            </Text>
-          </View>
+          calibrated ? (
+            <View style={[s.ok, !aligned && s.okOff]}>
+              <Svg width={18} height={18} viewBox="0 0 24 24">
+                <Path
+                  d={aligned ? 'M20 6 9 17l-5-5' : 'M12 4v10M12 18h.01'}
+                  stroke={aligned ? '#4E6A49' : '#8A7A5E'}
+                  strokeWidth={2.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </Svg>
+              <Text style={[s.okText, !aligned && s.okTextOff]}>
+                {aligned ? "Telefon to'g'ri yo'nalishda" : 'Telefonni aylantiring'}
+              </Text>
+            </View>
+          ) : (
+            <View style={[s.ok, s.okWarn]}>
+              <Text style={s.okIcon}>∞</Text>
+              <Text style={[s.okText, s.okTextWarn]}>Kompas sozlanmagan</Text>
+            </View>
+          )
         ) : null}
       </View>
 
@@ -133,11 +184,7 @@ export default function Qibla() {
             fill="none"
           />
         </Svg>
-        <Text style={s.tipText}>
-          {hasSensor
-            ? "Telefonni tekis ushlang va metall buyumlardan uzoqroq turing. Kompas sozlanmasa, telefonni sakkiz shaklida aylantiring."
-            : "Bu qurilmada magnit sensor yo'q, shuning uchun strelka aylanmaydi. Yo'nalish darajasi to'g'ri."}
-        </Text>
+        <Text style={s.tipText}>{tip}</Text>
       </View>
     </Screen>
   );
@@ -186,8 +233,11 @@ const s = StyleSheet.create({
     backgroundColor: '#EFF3EC',
   },
   okOff: { backgroundColor: color.pill },
+  okWarn: { backgroundColor: color.pill },
   okText: { fontFamily: font.bold, fontSize: 14, color: '#4A5D46' },
   okTextOff: { color: '#7A6A54' },
+  okTextWarn: { color: '#8A5A2E' },
+  okIcon: { fontSize: 17, fontFamily: font.extrabold, color: '#8A5A2E', lineHeight: 18 },
 
   tip: {
     marginHorizontal: layout.gutter,

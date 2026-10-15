@@ -48,7 +48,34 @@
         }
       ],
       "./modules/app-watch/plugin/withAppWatch",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-camera",
+        {
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Qibla yo'nalishini to'g'ri hisoblash uchun joylashuvingiz kerak."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# play-services-auth already ships its own consumer rules, but GoogleSignInAccount's public getters (displayName, photoUrl, idToken) are exactly the kind of accessor R8 has been reported to strip in field tests across other RN apps using this library -- keep them, since a stripped getter here would silently return null for the name and photo Task 28 depends on.\n-keep class com.google.android.gms.auth.api.signin.** { *; }",
+            "packagingOptions": {
+              "exclude": [
+                "**/libbarhopper_v3.so"
+              ]
+            }
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
