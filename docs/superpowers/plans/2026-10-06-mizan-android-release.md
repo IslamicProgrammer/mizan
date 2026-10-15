@@ -2990,3 +2990,182 @@ npx expo prebuild --platform android
 git add mobile/modules mobile/src
 git commit -m "feat(alarm): a Fajr alarm that is actually scheduled and actually rings"
 ```
+
+---
+
+## Phase 7 — found by using the app, 15 Oct 2026
+
+The owner used the release build and raised eight things. Six are real defects,
+one is a design problem, and one is a gap I wrongly called finished. Facts below
+are measured, not assumed.
+
+### Task 25: The APK is 132 MB, and most of it is not needed
+
+Measured breakdown of the shipped APK:
+
+| | |
+|---|---|
+| native libs, **four** ABIs | 103 MB |
+| dex | 51 MB across five files |
+| assets | 4.3 MB |
+| resources | 4.2 MB |
+
+Three causes, in order of size:
+
+**Four CPU architectures.** `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` all
+ship. A phone uses one. The x86 pair exists only for emulators.
+
+**Minification is off.** `android/gradle.properties` never sets
+`enableMinifyInReleaseBuilds`, so it defaults to false and R8 never runs — which
+is why there are five dex files totalling 51 MB.
+
+**ML Kit's barcode scanner.** `libbarhopper_v3.so` is ~5 MB per ABI, about
+22 MB in total, pulled in by `expo-camera`. This app scans prayer mats with
+Gemini; it has never scanned a barcode.
+
+- [ ] **Step 1: Ship an App Bundle to Play, not an APK**
+
+Play requires `.aab` anyway, and it splits per-ABI automatically — a user
+downloads one architecture, not four. This alone takes the download to roughly a
+third. Build with `eas build` or `./gradlew bundleRelease`.
+
+- [ ] **Step 2: Turn on R8 for release**
+
+In `android/gradle.properties`:
+
+```
+android.enableMinifyInReleaseBuilds=true
+android.enableShrinkResourcesInReleaseBuilds=true
+```
+
+These are generated files, so set them through `app.json`'s
+`expo-build-properties` plugin instead, or they are lost on the next prebuild.
+
+R8 strips unused code and shortens names. It also breaks reflection-based code,
+so after enabling it the whole app must be exercised — sign-in, the alarm, the
+blocker, the scan — before it is trusted. Keep `proguard-rules.pro` additions in
+the repo, not in `android/`.
+
+- [ ] **Step 3: Restrict ABIs for sideloaded builds**
+
+For the APKs handed to the owner, `arm64-v8a` and `armeabi-v7a` only. Every
+Android phone sold in the last decade is one of those; x86 is emulator-only and
+the emulator is not how this gets tested any more.
+
+- [ ] **Step 4: Drop the barcode scanner if `expo-camera` allows it**
+
+Check whether the ML Kit dependency can be excluded via a Gradle
+`exclude group:` without breaking the camera. If it cannot, say so and leave it —
+22 MB is not worth a broken camera.
+
+- [ ] **Step 5: Report the before and after**
+
+Measure the `.aab` download size, not the APK on disk. The number that matters is
+what a user on a Tashkent mobile connection actually downloads.
+
+### Task 26: The qibla compass is wrong, not just imprecise
+
+`mobile/src/app/qibla.tsx` reads raw `Magnetometer` `x` and `y` and takes
+`atan2`. That is wrong twice over:
+
+**It points at magnetic north.** The qibla bearing is computed from *true*
+north. The difference is the magnetic declination, several degrees in
+Uzbekistan, and the app never corrects for it — so the needle is confidently
+off by that much everywhere.
+
+**It assumes the phone is flat.** Two axes of a three-axis magnetometer only
+give a heading when the device is level. Tilt it and the reading drifts, with
+nothing on screen admitting it.
+
+- [ ] **Step 1: Use the platform's fused heading**
+
+`expo-location`'s `watchHeadingAsync` returns `trueHeading` — already
+declination-corrected by the OS — along with `magHeading` and an `accuracy`
+level from 0 to 3. Use `trueHeading` when it is not `-1`; it needs location
+permission, which this app already asks for.
+
+- [ ] **Step 2: Show calibration honestly**
+
+`accuracy` below 2 means the compass is not calibrated and the needle is
+guesswork. Say so and show the figure-eight gesture, as every serious compass
+app does. A confident needle that is thirty degrees out is worse than one that
+admits it does not know — this is a direction people pray toward.
+
+- [ ] **Step 3: Keep the bearing maths, it is correct**
+
+`qiblaDegrees()` computes the great-circle bearing to the Kaaba from the user's
+coordinates and is right. Only the heading source changes.
+
+- [ ] **Step 4: Handle no-magnetometer honestly**
+
+Some devices have none. Show the bearing as a number and a compass rose the user
+can align by hand, rather than a needle that never moves.
+
+### Task 27: Onboarding asks questions nobody reads
+
+`answers` is written by onboarding and read by **nothing except onboarding
+itself**. The practice, struggle and goal questions all feed a record the app
+never consults.
+
+Either use them or stop asking. The honest options:
+
+- **Use them.** The `struggle` answer is the obvious one: someone who says they
+  struggle with Fajr should land on a home screen that leads with the alarm,
+  and someone who says focus should land on the blocker.
+- **Cut them.** Fewer questions before first value is almost always better, and
+  every question that changes nothing is a question that costs a user.
+
+Decide, then do one or the other. A stored answer with no consumer is the kind
+of thing that looks like a feature in a code review and is a lie to the user.
+
+### Task 28: Sign-in throws away the user's name and photo
+
+`signInWithGoogle` takes the ID token and discards everything else. The profile
+screen shows `Hisobga kirish` even after signing in, because nothing captured a
+name or a photo.
+
+Capture `user.name`, `user.givenName` and `user.photo` from the sign-in result,
+store them with the token, and show them on the settings and profile screens.
+The server already has `email` on the user row.
+
+Keep it local: the photo URL is Google's CDN, so it needs no storage of ours.
+
+### Task 29: The two headline features look like minor ones
+
+The owner's words: *"we have 2 main features right? app blocking and timer for
+salat, and they seem just like regular features, not highlighted among tasbeh
+and qibla finder."*
+
+The home screen gives the Fajr alarm and the focus blocker the same visual
+weight as the tasbih and the qibla finder — a six-up grid of equal tiles. The
+two things the product is *for* are indistinguishable from two conveniences.
+
+This is a design task, not a code task. It needs a pass over `home.tsx` and the
+mockups that establishes a hierarchy: the alarm and the blocker as primary,
+with state ("alarm set for 05:02", "focus active, 24 minutes left"), and the
+rest demoted to a secondary row.
+
+Do not invent this in code. Produce the layout against the design system first.
+
+### Task 30: There is a paywall and no payment
+
+`PaywallStep` quotes real prices — 199 000 so'm a year, 16 500 a month, a seven
+day trial — and nothing happens when it is tapped. No billing, no entitlement,
+no restore.
+
+**I called this release-ready. That was wrong**, and worth stating plainly: a
+screen that claims to charge and does not is worse than no paywall, and the
+charity promise the product is built around depends on revenue that cannot
+currently be collected.
+
+Google Play Billing supports Uzbekistan — UZS is a supported currency and wire
+transfer payouts are available — so the route exists. Two things to resolve
+before building:
+
+- Play requires its own billing for digital subscriptions. Payme and Click,
+  which is what people in Uzbekistan actually use, are **not** permitted for
+  in-app digital goods.
+- Many users here hold Uzcard or HUMO cards, which Play may not accept. That is
+  an adoption risk to size before pricing is finalised, not after.
+
+Needs a decision from the owner before any code.
