@@ -3219,3 +3219,114 @@ The screen currently quotes prices and a seven-day trial and does nothing. Until
 billing is real, either remove the step or state plainly that it is coming. An
 app that looks like it took your money and did not is a support problem and a
 review problem.
+
+---
+
+### Task 31: A daily ayah on the home screen
+
+Added 15 Oct 2026. The owner, looking at the running app: *"our main page looks
+very free, little features are showing"* and *"this is islamic app and we are
+not showing quran or hadith, i am little concerned about that."*
+
+Both are true and they solve each other. The home screen has an empty lower
+third, and an Islamic app with no Quranic presence is a strange thing.
+
+Two decisions already made by the owner:
+
+- **Cyrillic, as published.** The Uzbek translation is Muhammad Sodik Muhammad
+  Yusuf — the standard one — and it exists only in Cyrillic. The app's UI is
+  Latin. We show the translation exactly as the translator published it rather
+  than letting an algorithm rewrite scripture. A short line under the card
+  explains why this section differs from the rest of the app.
+- **Small now.** This card only. The reader, reciters, word-by-word
+  highlighting and the reading tracker are Task 32, after launch.
+
+**Files:**
+- Create: `mobile/src/data/ayah.ts`
+- Modify: `mobile/src/app/(tabs)/home.tsx`, `mobile/src/data/store.tsx`
+- Test: `mobile/src/data/__tests__/ayah.test.ts`
+
+**The source:** `https://api.alquran.cloud/v1/ayah/{surah}:{ayah}/editions/quran-uthmani,uz.sodik`
+returns the Arabic and the Uzbek in one call. Verified working; the Uzbek
+edition identifier is `uz.sodik`.
+
+- [ ] **Step 1: Pick the ayah deterministically, from the date**
+
+The same ayah for everyone on a given day, derived from the date rather than
+random, so two people can talk about it. Seed from `ymd()` so it is stable
+across relaunches on the same day.
+
+Draw from a curated list of around sixty short, well-known ayahs rather than all
+6,236. Sodik's translation carries his tafsir inline, so a long ayah becomes a
+paragraph that will not fit a card — and an ayah pulled at random from the
+middle of a legal passage is poor daily reading. Put the list in `ayah.ts` with
+a comment saying why it is curated.
+
+- [ ] **Step 2: Fetch once, cache, and never block the screen**
+
+This app is offline-first and the home screen is the first thing it draws.
+Fetch in the background, cache the result in AsyncStorage keyed by date, and
+render from cache. No spinner on the home screen.
+
+If there is no network and nothing cached — a first launch offline — **render
+nothing at all**. An error card where scripture should be is worse than an
+empty space, which is what this task set out to fill.
+
+Keep yesterday's cached ayah rather than clearing it: a user who opens the app
+offline on day two should see something, even if it is a day old.
+
+- [ ] **Step 3: The card**
+
+Arabic on top in the existing Arabic face, the Uzbek translation beneath, and
+the reference — `Baqara 2:255`. Use the app's own tokens; it is part of the home
+screen, not a guest on it.
+
+Under it, one quiet line: `Tarjima: Muhammad Sodiq Muhammad Yusuf (kirill)`.
+That is both an attribution the translator is owed and the explanation for why
+this text is Cyrillic.
+
+Tapping the card does nothing for now. It becomes the entry point to the reader
+in Task 32, and a card that looks tappable and is not would be the same defect
+as the grabber that could not be grabbed.
+
+- [ ] **Step 4: Check the licence before release**
+
+The API is free to use; the translation itself is someone's work. Confirm
+redistribution is permitted and that the attribution above is sufficient, and
+record what you find. If it is unclear, say so rather than assuming — this is
+not a thing to discover from a complaint.
+
+- [ ] **Step 5: Gate**
+
+```bash
+cd mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+```
+
+Tests only where a bug would be silent: the date-to-ayah mapping is stable for
+a given day and differs across days, and the cache falls back correctly. Not
+rendering.
+
+---
+
+### Task 32: The Quran reader — after launch
+
+Deliberately not in the first release. Recorded now so the shape is not
+rediscovered later.
+
+What the research established, so it does not need doing twice:
+
+- **Word-by-word highlighting is possible.** The Quran Foundation API
+  (`api-docs.quran.foundation`) returns, with `segments=true`, timestamps as
+  `[word_index, start_ms, end_ms]` triplets per verse. That is exactly what is
+  needed to highlight along with a reciter, and it is why that API is preferred
+  over the simpler ones for this feature.
+- **Uzbek audio exists too** — `uz.sodik-audio` on alquran.cloud is the
+  translation recited, not only the Arabic.
+- Multiple Arabic reciters are available from both sources.
+
+The feature is a surah list, a reader, reciter selection, playback with
+highlighting, and a reading tracker — where the user's position is remembered
+and progress is visible, in the same spirit as the garden.
+
+It is the natural headline for the first update after launch, when there are
+testers using the app daily and something new to give them.
