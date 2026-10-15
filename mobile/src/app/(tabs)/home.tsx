@@ -28,6 +28,11 @@ import { SectionHead } from '../../components/ui';
  * to the two the product exists for, so they sit in one small row rather
  * than beside alarm and focus as if all six carried equal weight (task 27). */
 const SECONDARY = [
+  // Qur'on sits here as well as on the daily ayah card. The card is the nicer
+  // way in, but it renders nothing when there is no network and nothing cached
+  // -- and a whole feature reachable only through a card that may not appear is
+  // a feature some users will never find.
+  { icon: 'book', label: "Qur'on", to: '/quran' },
   { icon: 'compass', label: 'Qibla', to: '/qibla' },
   { icon: 'tasbih', label: 'Tasbeh', to: '/tasbih' },
   { icon: 'chart', label: 'Statistika', to: '/stats' },
