@@ -24,6 +24,13 @@
  */
 export type AyahRef = { surah: number; ayah: number; surahName: string };
 
+/**
+ * Surah 111 (Masad) is deliberately absent despite falling in the range. It is
+ * a condemnation of a named person, and "his wealth availed him not" is not
+ * what should greet someone opening a prayer app in the morning. The range rule
+ * picks short surahs; it cannot pick appropriate ones, so this is an editorial
+ * exception rather than a bug in the rule.
+ */
 /** One block per surah, oldest-numbered Meccan surah first within the range,
  * so the list reads in the same order the Qur'an itself places them. */
 const SURAHS: { surah: number; name: string; ayahCount: number }[] = [
@@ -35,7 +42,6 @@ const SURAHS: { surah: number; name: string; ayahCount: number }[] = [
   { surah: 108, name: 'Kavsar', ayahCount: 3 },
   { surah: 109, name: 'Kofirun', ayahCount: 6 },
   { surah: 110, name: 'Nasr', ayahCount: 3 },
-  { surah: 111, name: 'Masad', ayahCount: 5 },
   { surah: 112, name: 'Ixlos', ayahCount: 4 },
   { surah: 113, name: 'Falaq', ayahCount: 5 },
   { surah: 114, name: 'Nos', ayahCount: 6 },
