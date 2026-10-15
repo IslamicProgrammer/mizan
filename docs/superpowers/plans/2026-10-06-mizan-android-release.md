@@ -3101,22 +3101,64 @@ coordinates and is right. Only the heading source changes.
 Some devices have none. Show the bearing as a number and a compass rose the user
 can align by hand, rather than a needle that never moves.
 
-### Task 27: Onboarding asks questions nobody reads
+### Task 27: A home screen that leads with what the user came for
 
-`answers` is written by onboarding and read by **nothing except onboarding
-itself**. The practice, struggle and goal questions all feed a record the app
-never consults.
+Resolved by the owner on 15 Oct: **use the onboarding answers**, rather than
+cutting the questions.
 
-Either use them or stop asking. The honest options:
+Two complaints turn out to be one fix. The onboarding stores `practice`,
+`struggle` and `goal`, and **nothing reads them** — they are written by
+onboarding and consumed by onboarding alone. Separately, the owner says the two
+features the product exists for are indistinguishable from the conveniences:
+*"we have 2 main features right? app blocking and timer for salat, and they seem
+just like regular features, not highlighted among tasbeh and qibla finder."*
 
-- **Use them.** The `struggle` answer is the obvious one: someone who says they
-  struggle with Fajr should land on a home screen that leads with the alarm,
-  and someone who says focus should land on the blocker.
-- **Cut them.** Fewer questions before first value is almost always better, and
-  every question that changes nothing is a question that costs a user.
+Both are solved by letting the `struggle` answer decide what the home screen
+leads with.
 
-Decide, then do one or the other. A stored answer with no consumer is the kind
-of thing that looks like a feature in a code review and is a lie to the user.
+**Files:**
+- Modify: `mobile/src/app/(tabs)/home.tsx`, `mobile/src/data/store.tsx`
+- Read: `design-v3/home.html`, `design-v3/home-uz.html`
+
+- [ ] **Step 1: Decide the hierarchy against the design, not in code**
+
+`home.tsx` is a six-up grid of equal tiles: alarm, focus, qibla, tasbih, stats,
+charity. Six things of equal weight means nothing is important.
+
+Restructure into three bands:
+
+- **A primary card** for whichever of the two headline features matches the
+  user's `struggle` answer — the Fajr alarm, or the focus blocker. Full width,
+  carrying live state: `Bomdod 04:54 · uyg'otgich yoqilgan`, or
+  `Fokus faol · 24 daqiqa qoldi`. State is what makes it feel like the app's
+  purpose rather than a shortcut.
+- **A secondary card** for the other headline feature, half the height.
+- **The rest** — qibla, tasbih, stats, charity — as a compact row of small
+  tiles underneath.
+
+When `struggle` is absent (an install that predates this, or a skipped
+question), lead with the Fajr alarm. It is the product's name and the thing the
+onboarding spends the most time on.
+
+- [ ] **Step 2: Expose the answer properly**
+
+`answers` is `Record<string, string[]>`, which is fine for storage and wrong for
+reading. Add a derived `primaryFeature: 'alarm' | 'focus'` to the store so the
+screen asks one clear question instead of digging through an array by a magic
+key.
+
+- [ ] **Step 3: Make the choice changeable**
+
+A question answered once during onboarding must not be a life sentence. Add a
+row in settings that switches which feature leads. Someone whose Fajr becomes a
+habit will want the blocker in front, and they should not have to reinstall.
+
+- [ ] **Step 4: Verify the other answers are now used, or remove them**
+
+`practice` and `goal` still have no consumer after this. Either give them one in
+this task or delete the questions and their steps. Do not leave a third stored
+answer nothing reads — that is the defect this task exists to fix, and shipping
+two thirds of the fix recreates it.
 
 ### Task 28: Sign-in throws away the user's name and photo
 
@@ -3129,23 +3171,6 @@ store them with the token, and show them on the settings and profile screens.
 The server already has `email` on the user row.
 
 Keep it local: the photo URL is Google's CDN, so it needs no storage of ours.
-
-### Task 29: The two headline features look like minor ones
-
-The owner's words: *"we have 2 main features right? app blocking and timer for
-salat, and they seem just like regular features, not highlighted among tasbeh
-and qibla finder."*
-
-The home screen gives the Fajr alarm and the focus blocker the same visual
-weight as the tasbih and the qibla finder — a six-up grid of equal tiles. The
-two things the product is *for* are indistinguishable from two conveniences.
-
-This is a design task, not a code task. It needs a pass over `home.tsx` and the
-mockups that establishes a hierarchy: the alarm and the blocker as primary,
-with state ("alarm set for 05:02", "focus active, 24 minutes left"), and the
-rest demoted to a secondary row.
-
-Do not invent this in code. Produce the layout against the design system first.
 
 ### Task 30: There is a paywall and no payment
 
@@ -3168,4 +3193,29 @@ before building:
 - Many users here hold Uzcard or HUMO cards, which Play may not accept. That is
   an adoption risk to size before pricing is finalised, not after.
 
-Needs a decision from the owner before any code.
+**Resolved by the owner on 15 Oct: Google Play Billing, and card acceptance is
+verified before any of it is built.**
+
+- [ ] **Step 1: Prove a real card works, before writing code**
+
+This is the owner's to do, and it gates everything else. Create a subscription
+product in the Play Console, then have someone in Uzbekistan holding an Uzcard
+or HUMO card attempt a real purchase in an internal-testing build.
+
+If Play will not take the cards most of the market holds, the price, the plan
+structure and possibly the whole revenue model change — and that is enormously
+cheaper to learn before the billing integration than after.
+
+- [ ] **Step 2: Then build it**
+
+`react-native-iap` or Expo's billing module, products matching the prices
+already on screen (199 000 so'm a year, 24 900 a month), entitlement checked
+server-side against Play's API rather than trusted from the client, and a
+restore path for a reinstall or a second device.
+
+- [ ] **Step 3: Until it exists, the paywall must not claim to charge**
+
+The screen currently quotes prices and a seven-day trial and does nothing. Until
+billing is real, either remove the step or state plainly that it is coming. An
+app that looks like it took your money and did not is a support problem and a
+review problem.
