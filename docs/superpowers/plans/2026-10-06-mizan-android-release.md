@@ -3330,3 +3330,113 @@ and progress is visible, in the same spirit as the garden.
 
 It is the natural headline for the first update after launch, when there are
 testers using the app daily and something new to give them.
+
+---
+
+### Task 33: The Quran reader
+
+Brought forward from Task 32 at the owner's request, after seeing the daily
+ayah card: *"it is there, but where can I read it, play it, select different
+reciters and follow it — it highlights the reading part."*
+
+Everything needed is open and keyless. Verified by calling it:
+
+| | |
+|---|---|
+| reciters | **12**, `api.quran.com/api/v4/resources/recitations` — AbdulBaset, Sudais, Shatri, Alafasy and others |
+| per-ayah audio | `/recitations/{id}/by_chapter/{n}` returns one MP3 per ayah |
+| whole-surah audio | `/chapter_recitations/{id}/{n}` |
+| Arabic text | `/verses/by_chapter/{n}?fields=text_uthmani`, with word-level data |
+| Uzbek translation | `uz.sodik` on alquran.cloud, Cyrillic, as already used by the daily card |
+
+**Highlighting is ayah-level, and that is a decision rather than a shortfall.**
+Per-ayah MP3s mean the playing ayah is known exactly: play ayah *n*'s file,
+highlight ayah *n*, advance on completion. No timing data, nothing to drift out
+of sync, and it works the same for every reciter. Word-level highlighting needs
+per-word timestamps that are not uniformly available across reciters, and a
+word highlight that lags the audio is worse than a clean ayah highlight. Revisit
+it later as a refinement, not as the first version.
+
+**Files:**
+- Create: `server/src/routes/quran.ts`, `server/src/quran/surahs.ts`
+- Create: `mobile/src/app/quran/index.tsx` (surah list), `mobile/src/app/quran/[surah].tsx` (reader)
+- Create: `mobile/src/data/quran.ts`, `mobile/src/data/recitation.ts`
+- Modify: `mobile/src/app/(tabs)/home.tsx` (the daily card becomes the way in),
+  `mobile/src/data/store.tsx` (reading position, chosen reciter)
+
+- [ ] **Step 1: Metadata through our server, audio straight from the CDN**
+
+The owner's standing rule is that third-party APIs are called from our server,
+and it holds for **metadata**: surah lists, ayah text, translations, reciter
+lists. One upstream call serves every user, we can cache, and no third party
+sees our users.
+
+**Audio is the exception, and must stream directly from the CDN.** The files are
+megabytes each and a surah is hundreds of them. Proxying that through one small
+Contabo box would be slow for the user and would turn our server into a CDN we
+are not paying to run. The server returns the URLs; the phone fetches the audio.
+
+Say this in a comment where the exception is made, so it does not read as an
+oversight.
+
+- [ ] **Step 2: The surah list**
+
+All 114, with the Uzbek name, the Arabic name, the ayah count and whether it is
+Meccan or Medinan. Bundle this list in `server/src/quran/surahs.ts` rather than
+fetching it — it has not changed in fourteen centuries and it should not need a
+network call.
+
+Show the user's current reading position at the top: *Davom etish — Baqara, 45-oyat*.
+
+- [ ] **Step 3: The reader**
+
+Ayah by ayah: the Arabic in Amiri at a size meant for reading rather than
+glancing, the Uzbek translation beneath in Cyrillic, the ayah number in the
+margin. A `FlatList`, because a long surah is hundreds of ayahs and this must
+stay smooth on the cheap Android phones this app is for.
+
+- [ ] **Step 4: Playback**
+
+`npx expo install expo-audio` — it is not currently installed.
+
+A play control per ayah and one for the surah. Playing highlights the current
+ayah and scrolls it into view, then advances. Pause, resume, and a reciter
+picker that remembers the choice.
+
+Two things that decide whether this feels finished:
+- **Keep playing when the screen locks.** Someone listening to a surah on the
+  way to work does not hold the phone. This needs background audio configured in
+  `app.json` and an audio session that survives backgrounding.
+- **Do not fight the prayer alarm.** If the Fajr alarm fires while a recitation
+  is playing, the alarm wins. Check how `AlarmService` claims the audio focus
+  and make sure recitation yields rather than the two overlapping.
+
+- [ ] **Step 5: Remember where they were**
+
+Store surah and ayah on every change, and offer it on the surah list and on the
+home card. This is the tracker the owner asked about: not a separate feature,
+just the reader remembering.
+
+- [ ] **Step 6: Offline, honestly**
+
+Text for a surah already read is cached and readable offline. Audio is not
+cached in this version — a surah of MP3s is tens of megabytes and the app is
+already fighting its size. When offline, the text reads and the play control
+says so plainly rather than failing silently.
+
+- [ ] **Step 7: The daily card becomes the entrance**
+
+It is currently deliberately not tappable. Now it opens the reader at that ayah,
+which is what it was always for.
+
+- [ ] **Step 8: Gate**
+
+```bash
+cd server && npx tsc --noEmit && npm test
+cd ../mobile && npx tsc --noEmit && npx expo lint && npx jest && npm run smoke
+```
+
+Add the two new routes to `scripts/smoke.mjs`.
+
+Tests only where a bug would be silent: the surah/ayah position arithmetic, the
+playlist advance, and the server's caching. Not rendering.
