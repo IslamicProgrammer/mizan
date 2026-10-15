@@ -17,7 +17,7 @@ import { color, font, layout, lift, size } from '../../design/tokens';
 const PRIVACY_URL = 'https://mizanapp.uz/maxfiylik';
 
 export default function Settings() {
-  const { settings, patchSettings, reset } = useStore();
+  const { settings, patchSettings, reset, primaryFeature } = useStore();
   const { session } = useSession();
 
   return (
@@ -93,6 +93,25 @@ export default function Settings() {
           icon="maghrib"
           title="Tungi ko'rinish"
           right={<Toggle value={settings.nightTheme} onChange={(v) => patchSettings({ nightTheme: v })} />}
+        />
+      </List>
+
+      {/* The onboarding `struggle` answer picks this once; a habit formed
+          since then must not be stuck with that first answer forever — see
+          `primaryFeatureFor` in data/store.tsx (task 27). */}
+      <Label>Bosh ekranda birinchi</Label>
+      <List>
+        <Row
+          icon="alarm"
+          title="Bomdod uyg'otgichi"
+          on={primaryFeature === 'alarm'}
+          onPress={() => patchSettings({ primaryFeatureOverride: 'alarm' })}
+        />
+        <Row
+          icon="shield"
+          title="Fokus"
+          on={primaryFeature === 'focus'}
+          onPress={() => patchSettings({ primaryFeatureOverride: 'focus' })}
         />
       </List>
 

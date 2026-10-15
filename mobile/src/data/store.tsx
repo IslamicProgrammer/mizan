@@ -84,6 +84,15 @@ export type Settings = {
    * the mode a given `startFocus` call told it.
    */
   blockMode: BlockMode;
+  /**
+   * Overrides `primaryFeatureFor`'s read of the onboarding `struggle`
+   * answer, from the settings row task 27 added. `null` -- never a third
+   * state like `'auto'` -- means "no override yet", so an install that
+   * persisted its settings before this field existed, or a user who has
+   * never touched the row, both fall straight back to the onboarding
+   * answer exactly as if this field did not exist.
+   */
+  primaryFeatureOverride: 'alarm' | 'focus' | null;
 };
 
 export type State = {
@@ -171,6 +180,22 @@ export function stateForSync(state: State): Omit<State, 'cycles'> {
   return syncable;
 }
 
+/**
+ * Which of the app's two headline features leads the home screen --
+ * `home.tsx` asks this one question rather than digging `struggle`'s
+ * multi-select array out of `answers` itself by its magic key. `struggle`
+ * can hold more than one choice; `wake` ("Bomdodga uyg'onolmayman") wins
+ * over `phone` ("Telefon chalg'itadi") when both are present, and an
+ * install with neither -- no answer at all, every other `struggle` choice,
+ * or a skipped question -- falls back to the alarm, because Fajr is the
+ * product's name and what onboarding spends the most time on (task 27).
+ */
+export function primaryFeatureFor(struggle: string[] | undefined): 'alarm' | 'focus' {
+  if (struggle?.includes('wake')) return 'alarm';
+  if (struggle?.includes('phone')) return 'focus';
+  return 'alarm';
+}
+
 const DEFAULTS: State = {
   onboarded: false,
   settings: {
@@ -184,6 +209,7 @@ const DEFAULTS: State = {
     notifyBefore: 15,
     testBlockNow: false,
     blockMode: 'remind',
+    primaryFeatureOverride: null,
   },
   marks: { fajr: null, sunrise: null, dhuhr: null, asr: null, maghrib: null, isha: null },
   marksDate: ymd(new Date()),
@@ -251,6 +277,12 @@ type Store = State & {
   reset: () => void;
   /** prayers kept today, out of five — the plant's stage */
   keptToday: number;
+  /**
+   * `primaryFeatureOverride` resolved against the onboarding answer, so
+   * `home.tsx` reads one clear field instead of re-deriving this itself.
+   * See `primaryFeatureFor` above for the mapping and its fallback.
+   */
+  primaryFeature: 'alarm' | 'focus';
   /** last `n` days, oldest first, today last */
   recentDays: (n: number) => { date: string; rec: DayRecord; today: boolean }[];
   /**
@@ -437,6 +469,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       keptToday,
       recentDays,
       streak,
+      primaryFeature: state.settings.primaryFeatureOverride ?? primaryFeatureFor(state.answers.struggle),
       setMark: (id, mark) =>
         setState((s) => ({ ...s, marks: { ...s.marks, [id]: mark }, marksUpdatedAt: Date.now() })),
       patchSettings: (p) =>

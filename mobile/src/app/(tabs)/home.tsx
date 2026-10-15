@@ -1,15 +1,18 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Backdrop } from '../../design/Backdrop';
 import { color, font, layout, lift, size } from '../../design/tokens';
-import { ICONS } from '../../data/icons';
+import { ICONS, type IconKey } from '../../data/icons';
+import { canScheduleExact, isFocusRunning, nextFajrAlarmAt } from '../../../modules/app-watch';
+import { nextFajrAt } from '../../data/alarm';
 import {
   TASHKENT,
+  blockWindow,
   countdown,
   currentPrayer,
   dayMonth,
@@ -17,21 +20,65 @@ import {
   nextPrayer,
   timesFor,
 } from '../../data/prayer';
-import { useStore } from '../../data/store';
+import { useStore, type Settings } from '../../data/store';
 import { SectionHead } from '../../components/ui';
 
-const QUICK = [
-  { icon: 'alarm', label: "Uyg'otgich", to: '/settings/alarm' },
-  { icon: 'lock', label: 'Fokus', to: '/focus' },
+/** Qibla, tasbih, stats and charity -- real features, but conveniences next
+ * to the two the product exists for, so they sit in one small row rather
+ * than beside alarm and focus as if all six carried equal weight (task 27). */
+const SECONDARY = [
   { icon: 'compass', label: 'Qibla', to: '/qibla' },
   { icon: 'tasbih', label: 'Tasbeh', to: '/tasbih' },
   { icon: 'chart', label: 'Statistika', to: '/stats' },
   { icon: 'gift', label: 'Ehson', to: '/charity' },
 ] as const;
 
+type FeatureKey = 'alarm' | 'focus';
+
+type FeatureCard = { icon: IconKey; title: string; sub: string; to: string };
+
+/**
+ * What the alarm and focus cards actually say -- read back from the system
+ * the same way `settings/alarm.tsx` and `focus/apps.tsx` do, never a second
+ * guess at whether either one is really armed. `nextAlarmAt` and
+ * `focusRunning` come from the native module; everything else is the same
+ * `prayer.ts` arithmetic every other screen already uses.
+ */
+function featureCard(
+  key: FeatureKey,
+  now: Date,
+  settings: Settings,
+  live: { exactAllowed: boolean; nextAlarmAt: number | null; focusRunning: boolean },
+): FeatureCard {
+  if (key === 'alarm') {
+    const at = live.nextAlarmAt ?? nextFajrAt(now, settings.madhhab);
+    const sub = !settings.fajrAlarm
+      ? "Uyg'otgich o'chirilgan"
+      : !live.exactAllowed
+        ? 'Ruxsat kerak'
+        : "Uyg'otgich yoqilgan";
+    return { icon: 'alarm', title: `Bomdod ${hhmm(new Date(at))}`, sub, to: '/settings/alarm' };
+  }
+
+  if (live.focusRunning) {
+    const minutesLeft = blockWindow(now, settings.madhhab).minutesLeft;
+    return { icon: 'shield', title: 'Fokus faol', sub: `${minutesLeft} daqiqa qoldi`, to: '/focus' };
+  }
+  if (!settings.focusEnabled) {
+    return { icon: 'shield', title: 'Fokus', sub: "O'chirilgan", to: '/focus' };
+  }
+  const next = nextPrayer(now, settings.madhhab);
+  return {
+    icon: 'shield',
+    title: 'Fokus',
+    sub: `Keyingi bloklash: ${next.slot.name} · ${hhmm(next.slot.at)}`,
+    to: '/focus',
+  };
+}
+
 export default function Home() {
   const insets = useSafeAreaInsets();
-  const { settings, marks } = useStore();
+  const { settings, marks, primaryFeature } = useStore();
   const [now, setNow] = useState(new Date());
 
   // The hero is a live countdown — a frozen clock is the fastest way to make a
@@ -41,11 +88,35 @@ export default function Home() {
     return () => clearInterval(t);
   }, []);
 
+  // Both readings come from a system this screen never sees change
+  // directly -- the exact-alarm grant and the focus service's own
+  // running flag are both set from outside this component's renders, so
+  // they are re-read on every return to this tab, the same snapshot
+  // pattern `settings/alarm.tsx` and `focus/apps.tsx` use.
+  const [live, setLive] = useState(() => ({
+    exactAllowed: canScheduleExact(),
+    nextAlarmAt: nextFajrAlarmAt() as number | null,
+    focusRunning: isFocusRunning(),
+  }));
+  useFocusEffect(
+    useCallback(() => {
+      setLive({
+        exactAllowed: canScheduleExact(),
+        nextAlarmAt: nextFajrAlarmAt(),
+        focusRunning: isFocusRunning(),
+      });
+    }, []),
+  );
+
   const next = nextPrayer(now, settings.madhhab);
   const left = countdown(next.until);
   const slots = timesFor(now, settings.madhhab).filter((s) => s.id !== 'sunrise');
   const current = currentPrayer(now, settings.madhhab);
   const date = dayMonth(now);
+
+  const secondaryFeature: FeatureKey = primaryFeature === 'alarm' ? 'focus' : 'alarm';
+  const primary = featureCard(primaryFeature, now, settings, live);
+  const secondary = featureCard(secondaryFeature, now, settings, live);
 
   return (
     <View style={s.screen}>
@@ -108,8 +179,29 @@ export default function Home() {
           </View>
         </View>
 
+        {/* The primary/secondary pair task 27 added: whichever headline
+            feature matches the onboarding `struggle` answer leads, full
+            width and carrying real state, with the other demoted beneath
+            it at half height -- see `primaryFeatureFor` in data/store.tsx. */}
+        <Pressable accessibilityRole="button" onPress={() => router.push(primary.to as never)} style={[s.primary, lift.high]}>
+          <View style={s.flex}>
+            <Text style={s.primaryKey}>{primaryFeature === 'alarm' ? 'ERTAGA' : 'FOKUS'}</Text>
+            <Text style={s.primaryTitle}>{primary.title}</Text>
+            <Text style={s.primarySub}>{primary.sub}</Text>
+          </View>
+          <Image source={ICONS[primary.icon]} style={s.primaryIcon} contentFit="contain" />
+        </Pressable>
+
+        <Pressable accessibilityRole="button" onPress={() => router.push(secondary.to as never)} style={[s.secondary, lift.low]}>
+          <Image source={ICONS[secondary.icon]} style={s.secondaryIcon} contentFit="contain" />
+          <View style={s.flex}>
+            <Text style={s.secondaryTitle}>{secondary.title}</Text>
+            <Text style={s.secondarySub}>{secondary.sub}</Text>
+          </View>
+        </Pressable>
+
         <View style={[s.quick, lift.low]}>
-          {QUICK.map((q) => (
+          {SECONDARY.map((q) => (
             <Pressable
               key={q.label}
               accessibilityRole="button"
@@ -148,30 +240,9 @@ export default function Home() {
             );
           })}
         </ScrollView>
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/settings/alarm')}
-          style={[s.fajr, lift.high]}
-        >
-          <View style={s.flex}>
-            <Text style={s.fajrKey}>ERTAGA</Text>
-            <Text style={s.fajrTitle}>Bomdod {hhmm(timesFor(tomorrow(now), settings.madhhab)[0].at)}</Text>
-            <Text style={s.fajrSub}>
-              {settings.fajrAlarm ? "Uyg'otgich yoqilgan" : "Uyg'otgich o'chirilgan"}
-            </Text>
-          </View>
-          <Image source={ICONS.alarm} style={s.fajrIcon} contentFit="contain" />
-        </Pressable>
       </ScrollView>
     </View>
   );
-}
-
-function tomorrow(d: Date) {
-  const t = new Date(d);
-  t.setDate(t.getDate() + 1);
-  return t;
 }
 
 const s = StyleSheet.create({
@@ -228,19 +299,51 @@ const s = StyleSheet.create({
   },
   metaVal: { fontFamily: font.bold, fontSize: size.title, color: color.ink },
 
-  quick: {
-    marginTop: 20,
+  primary: {
+    marginTop: 16,
     marginHorizontal: layout.gutter,
-    paddingVertical: 16,
+    padding: 18,
+    borderRadius: 24,
+    backgroundColor: '#F3C87E',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  primaryKey: { fontFamily: font.bold, fontSize: 10, letterSpacing: 1, color: '#8A5A11' },
+  primaryTitle: { fontFamily: font.extrabold, fontSize: size.lead, color: '#40290C', marginTop: 2 },
+  primarySub: { fontFamily: font.medium, fontSize: size.tiny, color: '#8A5A11', marginTop: 2 },
+  primaryIcon: { width: 40, height: 40 },
+
+  // Half the primary card's height: smaller icon, one line of title and
+  // sub each, on the plain surface fill rather than the gold one -- the
+  // demotion has to read at a glance, not just by position on the page.
+  secondary: {
+    marginTop: 10,
+    marginHorizontal: layout.gutter,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: color.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  secondaryIcon: { width: 26, height: 26 },
+  secondaryTitle: { fontFamily: font.bold, fontSize: size.small, color: color.ink },
+  secondarySub: { fontFamily: font.medium, fontSize: 11.5, color: color.inkSoft, marginTop: 1 },
+
+  quick: {
+    marginTop: 14,
+    marginHorizontal: layout.gutter,
+    paddingVertical: 14,
     paddingHorizontal: 8,
     borderRadius: 24,
     backgroundColor: color.surface,
     flexDirection: 'row',
-    flexWrap: 'wrap',
   },
-  quickItem: { width: '33.33%', alignItems: 'center', gap: 9, paddingVertical: 8 },
-  quickIcon: { width: 40, height: 40 },
-  quickLabel: { fontFamily: font.medium, fontSize: size.small, color: color.ink },
+  quickItem: { flex: 1, alignItems: 'center', gap: 8 },
+  quickIcon: { width: 32, height: 32 },
+  quickLabel: { fontFamily: font.medium, fontSize: 11.5, color: color.ink },
 
   strip: { paddingHorizontal: layout.gutter, gap: layout.cardGap, paddingVertical: 10 },
   card: {
@@ -257,19 +360,4 @@ const s = StyleSheet.create({
   cardTime: { fontFamily: font.bold, fontSize: 15, color: color.ink, fontVariant: ['tabular-nums'] },
   cardDone: { color: '#5F7D59' },
   onInk: { color: '#40290C' },
-
-  fajr: {
-    marginTop: 14,
-    marginHorizontal: layout.gutter,
-    padding: 18,
-    borderRadius: 24,
-    backgroundColor: '#F3C87E',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  fajrKey: { fontFamily: font.bold, fontSize: 10, letterSpacing: 1, color: '#8A5A11' },
-  fajrTitle: { fontFamily: font.extrabold, fontSize: size.lead, color: '#40290C', marginTop: 2 },
-  fajrSub: { fontFamily: font.medium, fontSize: size.tiny, color: '#8A5A11', marginTop: 2 },
-  fajrIcon: { width: 40, height: 40 },
 });

@@ -29,6 +29,7 @@ const BASE_SETTINGS: Settings = {
   notifyBefore: 15,
   testBlockNow: false,
   blockMode: 'remind',
+  primaryFeatureOverride: null,
 };
 
 describe('syncFajrAlarm', () => {

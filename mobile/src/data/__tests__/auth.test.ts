@@ -104,6 +104,7 @@ function baseState(overrides: Partial<State> = {}): State {
       notifyBefore: 15,
       testBlockNow: false,
       blockMode: 'remind',
+      primaryFeatureOverride: null,
     },
     marks: { fajr: null, sunrise: null, dhuhr: null, asr: null, maghrib: null, isha: null },
     marksDate: '2026-01-01',

@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 
-import { StoreProvider, stateForSync, useStore } from '../store';
+import { StoreProvider, primaryFeatureFor, stateForSync, useStore } from '../store';
 
 type Store = ReturnType<typeof useStore>;
 
@@ -331,6 +331,70 @@ describe('blockMode setting (task 23)', () => {
 
     const reloaded = await mountStore();
     expect(reloaded.current().settings.blockMode).toBe('lock');
+  });
+});
+
+describe('primaryFeatureFor (task 27)', () => {
+  it('leads with the alarm when struggle names waking for Fajr', () => {
+    expect(primaryFeatureFor(['wake'])).toBe('alarm');
+  });
+
+  it('leads with focus when struggle names the phone, and wake was not chosen', () => {
+    expect(primaryFeatureFor(['phone'])).toBe('focus');
+  });
+
+  it("prefers the alarm when both are chosen -- Fajr is the product's name", () => {
+    expect(primaryFeatureFor(['phone', 'wake'])).toBe('alarm');
+  });
+
+  it('falls back to the alarm for a struggle answer that names neither headline feature', () => {
+    expect(primaryFeatureFor(['forget', 'streak'])).toBe('alarm');
+  });
+
+  it('falls back to the alarm for an empty selection', () => {
+    expect(primaryFeatureFor([])).toBe('alarm');
+  });
+
+  it('falls back to the alarm when struggle was never answered at all', () => {
+    expect(primaryFeatureFor(undefined)).toBe('alarm');
+  });
+});
+
+describe('primaryFeature on the store', () => {
+  it('derives from the struggle answer when no override is set', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().setAnswers({ struggle: ['phone'] });
+    });
+
+    expect(store.current().primaryFeature).toBe('focus');
+  });
+
+  it('defaults to the alarm with no answers at all -- a fresh or pre-task-27 install', async () => {
+    const store = await mountStore();
+    expect(store.current().primaryFeature).toBe('alarm');
+  });
+
+  it('lets the settings override win over whatever struggle said', async () => {
+    const store = await mountStore();
+
+    await act(async () => {
+      store.current().setAnswers({ struggle: ['wake'] });
+      store.current().patchSettings({ primaryFeatureOverride: 'focus' });
+    });
+
+    expect(store.current().primaryFeature).toBe('focus');
+  });
+
+  it('persists the override across a fresh mount, like any other setting', async () => {
+    const store = await mountStore();
+    await act(async () => {
+      store.current().patchSettings({ primaryFeatureOverride: 'focus' });
+    });
+
+    const reloaded = await mountStore();
+    expect(reloaded.current().primaryFeature).toBe('focus');
   });
 });
 

@@ -1,8 +1,15 @@
 /**
- * Onboarding content — all 12 steps.
+ * Onboarding content — all 10 steps.
  *
  * Copy is taken verbatim from the designed screens (design-v3/0*.html). Do not
  * paraphrase it here; change the design first, or the mockups and the app drift.
+ *
+ * `practice` and `goal` (design-v3/04-practice.html, 06-goal.html) were cut
+ * here (task 27): the app stored both answers and nothing ever read either
+ * one, which is the exact defect this task exists to remove. `struggle`
+ * stays because it now drives `primaryFeatureFor` in data/store.tsx — a
+ * stored answer with no consumer must not come back the next time someone
+ * is tempted to add "just one more" onboarding question.
  */
 import type { IconKey } from '../data/icons';
 
@@ -53,22 +60,6 @@ export const STEPS: Step[] = [
     ],
   },
   {
-    id: 'practice',
-    kind: 'choose',
-    select: 'one',
-    cta: 'Davom etish',
-    hint: "bu javobni keyin ham o'zgartirasiz",
-    ask: "Hozir qanchalik muntazam o'qiyapsiz?",
-    why: "To'g'ri javob yo'q — bu faqat boshlang'ich nuqtangizni belgilaydi.",
-    choices: [
-      { key: 'all', icon: 'ring_full', title: 'Barcha besh vaqt', sub: 'Deyarli hech qaysisini qoldirmayman' },
-      { key: 'most', icon: 'ring_most', title: "Ko'pini o'qiyman", sub: "Ba'zan bir-ikkitasi qoladi" },
-      { key: 'some', icon: 'ring_some', title: "Ba'zi vaqtlarda", sub: "Muntazam emas, lekin o'qiyman" },
-      { key: 'starting', icon: 'sprout', title: 'Endi boshlayapman', sub: 'Odat qilmoqchiman' },
-      { key: 'skip', icon: 'dash', title: 'Aytmayman', sub: "Bu savolni o'tkazib yuboraman" },
-    ],
-  },
-  {
     id: 'struggle',
     kind: 'choose',
     select: 'many',
@@ -81,19 +72,6 @@ export const STEPS: Step[] = [
       { key: 'phone', icon: 'apps', title: "Telefon chalg'itadi", sub: "Scroll qilib vaqtni o'tkazaman" },
       { key: 'forget', icon: 'bell', title: "Vaqtini unutib qo'yaman", sub: "Ish yoki o'qish orasida" },
       { key: 'streak', icon: 'chart', title: 'Muntazamlik yetishmaydi', sub: 'Bir hafta yaxshi, keyin tashlab yuboraman' },
-    ],
-  },
-  {
-    id: 'goal',
-    kind: 'choose',
-    select: 'one',
-    cta: 'Davom etish',
-    ask: "30 kundan keyin qayerda bo'lmoqchisiz?",
-    why: "Bog'ingiz shu maqsad bilan o'sadi.",
-    choices: [
-      { key: 'fajr', icon: 'fajr', title: 'Bomdodni tiklash', sub: "Har kuni uyg'onib namozga turish" },
-      { key: 'five', icon: 'ring_full', title: "Besh vaqtni to'liq", sub: 'Bittasini ham qoldirmaslik' },
-      { key: 'protect', icon: 'shield', title: 'Namoz vaqtini himoya qilish', sub: "Telefonsiz, xotirjam o'qish" },
     ],
   },
   {
@@ -166,4 +144,4 @@ export const STEPS: Step[] = [
 ];
 
 /** Steps that require an answer before the CTA enables. */
-export const NEEDS_ANSWER = new Set(['gender', 'practice', 'struggle', 'goal', 'madhhab', 'scan']);
+export const NEEDS_ANSWER = new Set(['gender', 'struggle', 'madhhab', 'scan']);
